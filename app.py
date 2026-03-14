@@ -153,6 +153,17 @@ MODULES = [
         'path': '05-training-techniques/01-batch-vs-sgd',
         'status': 'ready',
     },
+    {
+        'id': '05-2',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '05',
+        'group_name': 'Training Techniques',
+        'title': 'Optimizers',
+        'desc': 'Why plain gradient descent is slow — and how Momentum, RMSProp, and Adam fix it.',
+        'path': '05-training-techniques/02-optimizers',
+        'status': 'ready',
+    },
 ]
 
 
@@ -554,6 +565,31 @@ def m05_1_traces():
         total_epochs=int(data.get('epochs', 30)),
         lr=float(data.get('lr', 0.5)),
         batch_size=int(data.get('batch_size', 16)),
+    ))
+
+
+# =============================================================
+# MODULE 05-2: Optimizers
+# =============================================================
+@app.route('/05-2/')
+def m05_2_page():
+    return send_file(os.path.join(BASE, '05-training-techniques/02-optimizers/templates/index.html'))
+
+@app.route('/05-2/api/landscape', methods=['POST'])
+def m05_2_landscape():
+    data = request.json
+    return jsonify(nn['05-2'].run_optimizers(
+        landscape=data.get('landscape', 'bowl'),
+        lr=float(data.get('lr', 0.01)),
+        steps=int(data.get('steps', 150)),
+    ))
+
+@app.route('/05-2/api/nn_compare', methods=['POST'])
+def m05_2_nn_compare():
+    data = request.json
+    return jsonify(nn['05-2'].nn_comparison(
+        epochs=int(data.get('epochs', 50)),
+        lr=float(data.get('lr', 0.5)),
     ))
 
 
