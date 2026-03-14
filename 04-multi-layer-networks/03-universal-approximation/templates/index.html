@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04.3 — Universal Approximation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .arch-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+  .arch-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.76rem; cursor: pointer; }
+  .arch-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+
+  .slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .sl { font-family: Consolas, monospace; font-size: 0.8rem; color: #9e9e9e; min-width: 55px; text-align: right; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .sv { font-family: Consolas, monospace; font-size: 0.88rem; width: 50px; text-align: right; color: #fff; font-weight: 700; }
+
+  /* Canvases */
+  .canvas-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .canvas-card h3 { color: #fff; font-size: 0.95rem; margin-bottom: 10px; }
+  .canvas-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+  .canvas-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .canvas-row .canvas-card { flex: 1; min-width: 400px; }
+
+  /* Neuron count buttons */
+  .neuron-btns { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
+  .n-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.8rem; cursor: pointer; font-family: Consolas, monospace; transition: all 0.15s; }
+  .n-btn.active { border-color: #4fc3f7; color: #4fc3f7; background: rgba(79,195,247,0.1); }
+  .n-btn .loss-tag { font-size: 0.65rem; color: #555; display: block; margin-top: 2px; }
+  .n-btn.active .loss-tag { color: #4fc3f7; opacity: 0.7; }
+
+  /* Info panel */
+  .info-grid { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .info-box { flex: 1; min-width: 140px; background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; text-align: center; }
+  .info-box .lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+  .info-box .val { font-family: Consolas, monospace; font-size: 1.2rem; font-weight: 700; color: #4fc3f7; }
+
+  .status { text-align: center; padding: 20px; color: #555; font-size: 0.9rem; }
+  .status.loading { color: #ffb74d; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #888; }
+  .legend-swatch { width: 20px; height: 3px; border-radius: 2px; }
+
+  .toggle-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .toggle-btn { padding: 4px 12px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.75rem; cursor: pointer; }
+  .toggle-btn.active { border-color: #66bb6a; color: #66bb6a; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 04 &middot; Multi-Layer Networks</div>
+  <h1>Universal Approximation</h1>
+  <p class="subtitle">With enough neurons, a single hidden layer can approximate any function</p>
+
+  <div class="card">
+    <h3>The Universal Approximation Theorem</h3>
+    <p>A feedforward network with <strong>one hidden layer</strong> and <strong>enough neurons</strong> can approximate any continuous function to any desired accuracy. This is like mesh refinement in FEM — a coarse mesh (few neurons) gives a rough shape, a fine mesh (many neurons) captures every detail.</p>
+    <p>Each hidden neuron is a "hinge" — a ReLU that bends at one point. More hinges mean finer control, just like more elements in a finite element mesh give better accuracy.</p>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Target Function</h3>
+      <div class="arch-btns" id="fn-btns">
+        <button class="arch-btn active" data-fn="sine">Sine Wave</button>
+        <button class="arch-btn" data-fn="square">Square Wave</button>
+        <button class="arch-btn" data-fn="step">Step Function</button>
+        <button class="arch-btn" data-fn="wiggly">Multi-Frequency</button>
+        <button class="arch-btn" data-fn="bump">Gaussian Bump</button>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Training Epochs</h3>
+      <div class="slider-row">
+        <span class="sl">epochs</span>
+        <input type="range" id="s-epochs" min="500" max="5000" step="500" value="3000">
+        <span class="sv" id="v-epochs">3000</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="status" class="status">Select a function and press Train to begin.</div>
+
+  <!-- Neuron count selector -->
+  <div class="canvas-card" id="selector-card" style="display:none">
+    <h3>Select Neuron Count — <span id="arch-label">[1, N, 1]</span></h3>
+    <div class="neuron-btns" id="neuron-btns"></div>
+    <div class="info-grid" id="info-grid"></div>
+  </div>
+
+  <!-- Main approximation canvas -->
+  <div class="canvas-row">
+    <div class="canvas-card">
+      <h3>Approximation</h3>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#555"></div>Target function</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#4fc3f7"></div>Network fit</div>
+      </div>
+      <canvas id="fit-canvas" width="540" height="360"></canvas>
+    </div>
+    <div class="canvas-card">
+      <h3>Neuron Basis Functions</h3>
+      <div class="toggle-row">
+        <button class="toggle-btn active" id="btn-show-all-neurons" onclick="toggleAllNeurons()">Show All</button>
+        <span style="font-size:0.75rem; color:#555">Each line = one neuron's contribution to the output</span>
+      </div>
+      <canvas id="basis-canvas" width="540" height="360"></canvas>
+    </div>
+  </div>
+
+  <!-- All neuron counts comparison -->
+  <div class="canvas-card" id="compare-card" style="display:none">
+    <h3>Mesh Refinement: All Neuron Counts Compared</h3>
+    <canvas id="compare-canvas" width="1100" height="400"></canvas>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Start with Sine Wave.</strong> Watch how 1 neuron gives a crude straight-line approximation, 2 neurons add a bend, 4 start to curve, and 16+ almost perfectly trace the sine wave.</li>
+      <li><strong>Try Square Wave.</strong> Even 64 neurons struggle with the sharp edges — this is the Gibbs phenomenon. Smooth activation functions can't make truly sharp jumps.</li>
+      <li><strong>Look at the Basis Functions.</strong> Each colored line is one neuron's contribution. The network sums these to build the total curve. Like how FEM elements combine to form the solution.</li>
+      <li><strong>Compare Step Function with 1 vs. 32 neurons.</strong> With 1 neuron, the network can only make a single ramp. With 32, it can make a much sharper transition. But it never becomes truly discontinuous.</li>
+      <li><strong>Multi-Frequency function needs many neurons.</strong> The function has three frequency components mixed together. You need at least 8-16 neurons to capture all the wiggles.</li>
+      <li><strong>Watch the MSE drop</strong> as you add neurons. It's not always monotonic (randomness in training), but the trend is clear: more neurons = lower error.</li>
+      <li><strong>Think about FEM:</strong> A 2-element beam gives average stress. A 100-element beam shows stress concentrations. Neurons are like elements — more resolution requires more of them.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+let currentFn = 'sine';
+let currentData = null;
+let selectedIdx = 0; // which neuron count is selected
+let showAllNeurons = true;
+
+// ── Canvas setup ─────────────────────────
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+const fitC = setupC('fit-canvas', 540, 360);
+const basisC = setupC('basis-canvas', 540, 360);
+const compC = setupC('compare-canvas', 1100, 400);
+
+// ── Colors for neuron counts ─────────────────────────
+const NCOLS = ['#ef5350','#ff7043','#ffb74d','#fff176','#66bb6a','#4fc3f7','#7e57c2','#ec407a'];
+const NEURON_COLS = [
+  '#ef5350','#ff7043','#ffb74d','#fff176','#aed581','#4dd0e1',
+  '#4fc3f7','#7986cb','#ba68c8','#f06292','#ff8a65','#a1887f',
+  '#90a4ae','#80cbc4','#c5e1a5','#ffe082','#ffab91','#b39ddb',
+  '#81d4fa','#80deea','#c8e6c9','#f8bbd0','#d1c4e9','#bcaaa4',
+  '#e6ee9c','#b2dfdb','#ffccbc','#d7ccc8','#f0f4c3','#b3e5fc',
+  '#c5cae9','#dcedc8','#fff9c4','#ffecb3','#f9fbe7','#e8f5e9',
+  '#e3f2fd','#ede7f6','#fce4ec','#fff3e0','#e0f2f1','#f3e5f5',
+  '#e8eaf6','#e0f7fa','#f1f8e9','#fffde7','#fbe9e7','#efebe9',
+  '#eceff1','#fafafa','#e1f5fe','#f9fbe7','#fff8e1','#fce4ec',
+  '#f3e5f5','#e8eaf6','#e0f7fa','#e0f2f1','#f1f8e9','#fffde7',
+  '#fbe9e7','#efebe9','#eceff1','#fafafa',
+];
+
+// ── Controls ─────────────────────────
+document.querySelectorAll('#fn-btns .arch-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#fn-btns .arch-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFn = btn.dataset.fn;
+    fetchData();
+  });
+});
+
+document.getElementById('s-epochs').addEventListener('input', () => {
+  document.getElementById('v-epochs').textContent = document.getElementById('s-epochs').value;
+});
+document.getElementById('s-epochs').addEventListener('change', fetchData);
+
+function toggleAllNeurons() {
+  showAllNeurons = !showAllNeurons;
+  document.getElementById('btn-show-all-neurons').classList.toggle('active', showAllNeurons);
+  drawBasis();
+}
+
+// ── Fetch data ─────────────────────────
+async function fetchData() {
+  const epochs = parseInt(document.getElementById('s-epochs').value);
+  const status = document.getElementById('status');
+  status.textContent = `Training networks with 1 to 64 neurons on ${currentFn}... (this takes a few seconds)`;
+  status.className = 'status loading';
+
+  try {
+    const resp = await fetch('/api/fit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ function_name: currentFn, max_neurons: 64, epochs }),
+    });
+    currentData = await resp.json();
+    selectedIdx = Math.min(3, currentData.results.length - 1); // default to ~8 neurons
+    status.style.display = 'none';
+    buildNeuronButtons();
+    renderAll();
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    status.className = 'status';
+  }
+}
+
+// ── Build neuron selector ─────────────────────────
+function buildNeuronButtons() {
+  const container = document.getElementById('neuron-btns');
+  container.innerHTML = '';
+  document.getElementById('selector-card').style.display = '';
+
+  currentData.results.forEach((r, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'n-btn' + (i === selectedIdx ? ' active' : '');
+    btn.innerHTML = `${r.n_neurons} neurons<span class="loss-tag">MSE: ${r.final_loss.toFixed(4)}</span>`;
+    btn.addEventListener('click', () => { selectedIdx = i; renderAll(); });
+    container.appendChild(btn);
+  });
+}
+
+// ── Main render ─────────────────────────
+function renderAll() {
+  if (!currentData) return;
+  updateButtons();
+  updateInfo();
+  drawFit();
+  drawBasis();
+  drawCompare();
+}
+
+function updateButtons() {
+  document.querySelectorAll('.n-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === selectedIdx);
+  });
+  const r = currentData.results[selectedIdx];
+  document.getElementById('arch-label').textContent = `[1, ${r.n_neurons}, 1]`;
+}
+
+function updateInfo() {
+  const r = currentData.results[selectedIdx];
+  const nParams = r.n_neurons * 1 + r.n_neurons + 1 * r.n_neurons + 1;
+  // W1: n_hidden × 1, b1: n_hidden, W2: 1 × n_hidden, b2: 1
+  document.getElementById('info-grid').innerHTML = `
+    <div class="info-box"><div class="lbl">Hidden Neurons</div><div class="val">${r.n_neurons}</div></div>
+    <div class="info-box"><div class="lbl">Total Parameters</div><div class="val">${nParams}</div></div>
+    <div class="info-box"><div class="lbl">Final MSE</div><div class="val" style="color:${r.final_loss < 0.01 ? '#66bb6a' : (r.final_loss < 0.1 ? '#ffb74d' : '#ef5350')}">${r.final_loss.toFixed(5)}</div></div>
+    <div class="info-box"><div class="lbl">Architecture</div><div class="val" style="font-size:1rem">[1, ${r.n_neurons}, 1]</div></div>
+  `;
+}
+
+// ── Draw fit curve ─────────────────────────
+function drawFit() {
+  const { ctx, w: W, h: H } = fitC;
+  ctx.clearRect(0, 0, W, H);
+  drawGrid(ctx, W, H);
+
+  const x = currentData.x_eval;
+  const yTarget = currentData.y_target;
+  const r = currentData.results[selectedIdx];
+  const yFit = r.fitted_curve;
+
+  const { xToP, yToP, yMin, yMax } = makeScale(x, yTarget, W, H);
+
+  // Target (dashed gray)
+  ctx.beginPath();
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < x.length; i++) {
+    const px = xToP(x[i]), py = yToP(yTarget[i]);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Fitted curve
+  ctx.beginPath();
+  ctx.strokeStyle = '#4fc3f7';
+  ctx.lineWidth = 2.5;
+  for (let i = 0; i < x.length; i++) {
+    const px = xToP(x[i]), py = yToP(clamp(yFit[i], yMin - 1, yMax + 1));
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Label
+  ctx.font = '700 13px Consolas';
+  ctx.fillStyle = '#4fc3f7';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${r.n_neurons} neuron${r.n_neurons > 1 ? 's' : ''}`, 50, 25);
+  ctx.font = '11px Consolas';
+  ctx.fillStyle = '#666';
+  ctx.fillText(`MSE: ${r.final_loss.toFixed(5)}`, 50, 42);
+}
+
+// ── Draw basis functions ─────────────────────────
+function drawBasis() {
+  const { ctx, w: W, h: H } = basisC;
+  ctx.clearRect(0, 0, W, H);
+  drawGrid(ctx, W, H);
+
+  const r = currentData.results[selectedIdx];
+  const x = currentData.x_eval;
+  const contribs = r.contributions;
+  if (!contribs || contribs.length === 0) return;
+
+  // Find y range from contributions
+  let allVals = contribs.flat();
+  let yMin = Math.min(...allVals, -0.5);
+  let yMax = Math.max(...allVals, 0.5);
+  const pad = (yMax - yMin) * 0.1 || 0.5;
+  yMin -= pad; yMax += pad;
+
+  const { xToP, yToP } = makeScaleCustom(x, yMin, yMax, W, H);
+
+  // Zero line
+  ctx.beginPath();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  const zy = yToP(0);
+  ctx.moveTo(40, zy); ctx.lineTo(W - 10, zy);
+  ctx.stroke();
+
+  // Draw each neuron's contribution
+  const nShow = showAllNeurons ? contribs.length : Math.min(6, contribs.length);
+  for (let ni = 0; ni < nShow; ni++) {
+    const c = contribs[ni];
+    ctx.beginPath();
+    ctx.strokeStyle = NEURON_COLS[ni % NEURON_COLS.length];
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.7;
+    for (let i = 0; i < x.length; i++) {
+      const px = xToP(x[i]), py = yToP(clamp(c[i], yMin, yMax));
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Label
+  ctx.font = '700 13px Consolas';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${contribs.length} basis functions`, 50, 25);
+  ctx.font = '10px Consolas';
+  ctx.fillStyle = '#666';
+  ctx.fillText('Each line = w₂ᵢ · ReLU(w₁ᵢ·x + b₁ᵢ)', 50, 40);
+}
+
+// ── Draw comparison of all neuron counts ─────────────────────────
+function drawCompare() {
+  const { ctx, w: W, h: H } = compC;
+  ctx.clearRect(0, 0, W, H);
+  document.getElementById('compare-card').style.display = '';
+
+  const x = currentData.x_eval;
+  const yTarget = currentData.y_target;
+  const results = currentData.results;
+  const nPlots = results.length;
+  const cols = Math.min(4, nPlots);
+  const rows = Math.ceil(nPlots / cols);
+  const pw = Math.floor((W - 20) / cols);
+  const ph = Math.floor((H - 20) / rows);
+  const { xToP: xBase, yToP: yBase, yMin, yMax } = makeScale(x, yTarget, pw - 16, ph - 36);
+
+  for (let i = 0; i < nPlots; i++) {
+    const col = i % cols, row = Math.floor(i / cols);
+    const ox = 10 + col * pw, oy = 10 + row * ph;
+    const r = results[i];
+    const isSel = (i === selectedIdx);
+
+    // Sub-panel background
+    ctx.fillStyle = isSel ? 'rgba(79,195,247,0.06)' : '#0d0d20';
+    ctx.strokeStyle = isSel ? '#4fc3f7' : '#1e1e3a';
+    ctx.lineWidth = isSel ? 2 : 1;
+    roundRect(ctx, ox, oy, pw - 8, ph - 8, 6);
+    ctx.fill(); ctx.stroke();
+
+    ctx.save();
+    ctx.translate(ox + 8, oy + 28);
+
+    // Target
+    ctx.beginPath();
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1;
+    for (let j = 0; j < x.length; j++) {
+      const px = xBase(x[j]), py = yBase(yTarget[j]);
+      j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Fit
+    ctx.beginPath();
+    ctx.strokeStyle = NCOLS[i % NCOLS.length];
+    ctx.lineWidth = 1.5;
+    for (let j = 0; j < x.length; j++) {
+      const px = xBase(x[j]), py = yBase(clamp(r.fitted_curve[j], yMin - 1, yMax + 1));
+      j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Label
+    ctx.font = '700 11px Consolas';
+    ctx.fillStyle = NCOLS[i % NCOLS.length];
+    ctx.textAlign = 'left';
+    ctx.fillText(`${r.n_neurons}N`, ox + 10, oy + 16);
+    ctx.font = '9px Consolas';
+    ctx.fillStyle = '#555';
+    ctx.fillText(`MSE:${r.final_loss.toFixed(3)}`, ox + 50, oy + 16);
+  }
+}
+
+// ── Drawing helpers ─────────────────────────
+function drawGrid(ctx, W, H) {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#1a1a30';
+  ctx.lineWidth = 0.5;
+  for (let x = 40; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 20; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+}
+
+function makeScale(x, y, W, H) {
+  const xMin = Math.min(...x), xMax = Math.max(...x);
+  let yMin = Math.min(...y), yMax = Math.max(...y);
+  const pad = (yMax - yMin) * 0.15 || 0.5;
+  yMin -= pad; yMax += pad;
+  const mx = 40, my = 10, mxr = 10, myb = 20;
+  return {
+    xToP: v => mx + (v - xMin) / (xMax - xMin) * (W - mx - mxr),
+    yToP: v => my + (1 - (v - yMin) / (yMax - yMin)) * (H - my - myb),
+    yMin, yMax,
+  };
+}
+
+function makeScaleCustom(x, yMin, yMax, W, H) {
+  const xMin = Math.min(...x), xMax = Math.max(...x);
+  const mx = 40, my = 10, mxr = 10, myb = 20;
+  return {
+    xToP: v => mx + (v - xMin) / (xMax - xMin) * (W - mx - mxr),
+    yToP: v => my + (1 - (v - yMin) / (yMax - yMin)) * (H - my - myb),
+  };
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ── Init ─────────────────────────
+fetchData();
+</script>
+</body>
+</html>

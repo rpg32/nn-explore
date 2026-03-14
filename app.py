@@ -143,6 +143,28 @@ MODULES = [
         'status': 'ready',
     },
     {
+        'id': '04-2',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '04',
+        'group_name': 'Multi-Layer Networks',
+        'title': 'The Forward Pass',
+        'desc': 'Step through the matrix math — see exactly how data transforms at each layer.',
+        'path': '04-multi-layer-networks/02-forward-pass',
+        'status': 'ready',
+    },
+    {
+        'id': '04-3',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '04',
+        'group_name': 'Multi-Layer Networks',
+        'title': 'Universal Approximation',
+        'desc': 'More neurons = finer fit — like refining a mesh. One hidden layer can learn any function.',
+        'path': '04-multi-layer-networks/03-universal-approximation',
+        'status': 'ready',
+    },
+    {
         'id': '04-4',
         'phase': 2,
         'phase_name': 'Real Networks',
@@ -565,6 +587,40 @@ def m04_1_forward():
         data['architecture'],
         data.get('inputs', [0.5, -0.3]),
         seed=int(data.get('seed', 42)),
+    ))
+
+
+# =============================================================
+# MODULE 04-2: The Forward Pass
+# =============================================================
+@app.route('/04-2/')
+def m04_2_page():
+    return send_file(os.path.join(BASE, '04-multi-layer-networks/02-forward-pass/templates/index.html'))
+
+@app.route('/04-2/api/forward', methods=['POST'])
+def m04_2_forward():
+    data = request.json
+    return jsonify(nn['04-2'].forward_pass_demo(
+        data.get('architecture', [2, 4, 1]),
+        data.get('inputs', [0.5, -0.3]),
+        seed=int(data.get('seed', 42)),
+    ))
+
+
+# =============================================================
+# MODULE 04-3: Universal Approximation
+# =============================================================
+@app.route('/04-3/')
+def m04_3_page():
+    return send_file(os.path.join(BASE, '04-multi-layer-networks/03-universal-approximation/templates/index.html'))
+
+@app.route('/04-3/api/fit', methods=['POST'])
+def m04_3_fit():
+    data = request.json
+    return jsonify(nn['04-3'].fit_comparison(
+        data.get('function_name', 'sine'),
+        int(data.get('max_neurons', 64)),
+        int(data.get('epochs', 2000)),
     ))
 
 
