@@ -137,6 +137,17 @@ MODULES = [
         'phase_name': 'Real Networks',
         'group': '04',
         'group_name': 'Multi-Layer Networks',
+        'title': 'Layers',
+        'desc': 'Input, hidden, and output — how neurons are organized into layers.',
+        'path': '04-multi-layer-networks/01-layers',
+        'status': 'ready',
+    },
+    {
+        'id': '04-4',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '04',
+        'group_name': 'Multi-Layer Networks',
         'title': 'MLP Playground',
         'desc': 'Build a network, pick a dataset, train it, watch the decision boundary form.',
         'path': '04-multi-layer-networks/01-build-train-mlp',
@@ -541,38 +552,55 @@ def m03_3_sweep():
 
 
 # =============================================================
-# MODULE 04-1: MLP Playground
+# MODULE 04-1: Layers
+# =============================================================
+@app.route('/04-1/')
+def m04_1_page():
+    return send_file(os.path.join(BASE, '04-multi-layer-networks/01-layers/templates/index.html'))
+
+@app.route('/04-1/api/forward', methods=['POST'])
+def m04_1_forward():
+    data = request.json
+    return jsonify(nn['04-1'].demo_forward(
+        data['architecture'],
+        data.get('inputs', [0.5, -0.3]),
+        seed=int(data.get('seed', 42)),
+    ))
+
+
+# =============================================================
+# MODULE 04-4: MLP Playground
 # =============================================================
 import numpy as _np
 _mlp_04 = None
 _data_04 = {}
 
-@app.route('/04-1/')
-def m04_1_page():
+@app.route('/04-4/')
+def m04_4_page():
     return send_file(os.path.join(BASE, '04-multi-layer-networks/01-build-train-mlp/templates/index.html'))
 
-@app.route('/04-1/api/dataset/<name>')
-def m04_1_dataset(name):
-    if name not in nn['04-1'].DATASETS:
+@app.route('/04-4/api/dataset/<name>')
+def m04_4_dataset(name):
+    if name not in nn['04-4'].DATASETS:
         return jsonify({'error': 'Unknown'}), 404
-    ds = nn['04-1'].make_dataset(name)
+    ds = nn['04-4'].make_dataset(name)
     _data_04['X'] = _np.array(ds['X'])
     _data_04['labels'] = _np.array(ds['labels']).reshape(-1, 1)
-    return jsonify({'points': ds['points'], 'desc': nn['04-1'].DATASETS[name]})
+    return jsonify({'points': ds['points'], 'desc': nn['04-4'].DATASETS[name]})
 
-@app.route('/04-1/api/build', methods=['POST'])
-def m04_1_build():
+@app.route('/04-4/api/build', methods=['POST'])
+def m04_4_build():
     global _mlp_04
     data = request.json
     sizes = [2] + data['hidden_layers'] + [1]
-    _mlp_04 = nn['04-1'].MLP(sizes, activation=data.get('activation', 'relu'), seed=42)
+    _mlp_04 = nn['04-4'].MLP(sizes, activation=data.get('activation', 'relu'), seed=42)
     result = {'info': _mlp_04.get_info()}
     if 'X' in _data_04:
         result['heatmap'] = _mlp_04.predict_grid()
     return jsonify(result)
 
-@app.route('/04-1/api/train', methods=['POST'])
-def m04_1_train():
+@app.route('/04-4/api/train', methods=['POST'])
+def m04_4_train():
     if _mlp_04 is None or 'X' not in _data_04:
         return jsonify({'error': 'Build network and load data first'}), 400
     data = request.json
@@ -585,11 +613,11 @@ def m04_1_train():
         'history': _mlp_04.train_history,
     })
 
-@app.route('/04-1/api/reset', methods=['POST'])
-def m04_1_reset():
+@app.route('/04-4/api/reset', methods=['POST'])
+def m04_4_reset():
     global _mlp_04
     if _mlp_04:
-        _mlp_04 = nn['04-1'].MLP(_mlp_04.layer_sizes, _mlp_04.activation, seed=42)
+        _mlp_04 = nn['04-4'].MLP(_mlp_04.layer_sizes, _mlp_04.activation, seed=42)
         result = {'info': _mlp_04.get_info()}
         if 'X' in _data_04:
             result['heatmap'] = _mlp_04.predict_grid()
