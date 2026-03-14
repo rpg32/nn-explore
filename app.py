@@ -186,6 +186,17 @@ MODULES = [
         'path': '05-training-techniques/04-normalization',
         'status': 'ready',
     },
+    {
+        'id': '06-1',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '06',
+        'group_name': 'CNNs',
+        'title': 'Convolution',
+        'desc': 'A small filter slides over an image, computing weighted sums — detecting features everywhere.',
+        'path': '06-cnns/01-convolution',
+        'status': 'ready',
+    },
 ]
 
 
@@ -648,6 +659,34 @@ def m05_4_compare():
         lr=float(data.get('lr', 0.5)),
         scale_ratio=float(data.get('scale_ratio', 100)),
     ))
+
+
+# =============================================================
+# MODULE 06-1: Convolution
+# =============================================================
+@app.route('/06-1/')
+def m06_1_page():
+    return send_file(os.path.join(BASE, '06-cnns/01-convolution/templates/index.html'))
+
+@app.route('/06-1/api/images')
+def m06_1_images():
+    return jsonify(nn['06-1'].make_test_images())
+
+@app.route('/06-1/api/kernels')
+def m06_1_kernels():
+    return jsonify({k: {'name': v['name'], 'desc': v['desc'], 'kernel': v['kernel']}
+                    for k, v in nn['06-1'].KERNELS.items()})
+
+@app.route('/06-1/api/apply', methods=['POST'])
+def m06_1_apply():
+    data = request.json
+    return jsonify(nn['06-1'].apply_kernel(data['image'], data['kernel']))
+
+@app.route('/06-1/api/step', methods=['POST'])
+def m06_1_step():
+    data = request.json
+    result = nn['06-1'].compute_single_step(data['image'], data['kernel'], data['row'], data['col'])
+    return jsonify(result) if result else ('', 400)
 
 
 # =============================================================

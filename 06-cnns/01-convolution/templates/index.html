@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06.1 — Convolution</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ds-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.76rem; cursor: pointer; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+
+  /* Main layout: image | kernel | feature map */
+  .main-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-start; }
+  .vis-panel { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; text-align: center; }
+  .vis-panel h3 { font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .vis-panel canvas { display: block; margin: 0 auto; border-radius: 4px; cursor: crosshair; }
+  .vis-panel .info { font-family: Consolas, monospace; font-size: 0.75rem; color: #666; margin-top: 6px; }
+
+  .arrow { display: flex; align-items: center; font-size: 2rem; color: #333; padding-top: 80px; }
+
+  /* Kernel editor */
+  .kernel-grid { display: inline-grid; gap: 2px; margin: 8px auto; }
+  .kernel-cell { width: 52px; height: 36px; background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 3px; text-align: center; font-family: Consolas, monospace; font-size: 0.85rem; color: #e0e0e0; outline: none; }
+  .kernel-cell:focus { border-color: #4fc3f7; }
+
+  /* Step detail */
+  .step-detail { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .step-detail h3 { font-size: 0.85rem; color: #fff; margin-bottom: 10px; }
+  .step-grid { display: flex; gap: 16px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .step-mini { display: inline-grid; gap: 1px; }
+  .step-cell { width: 42px; height: 32px; display: flex; align-items: center; justify-content: center; font-family: Consolas, monospace; font-size: 0.75rem; border-radius: 2px; }
+  .step-op { font-size: 1.3rem; color: #555; padding: 0 4px; }
+  .step-result { font-family: Consolas, monospace; font-size: 1.1rem; font-weight: 700; color: #4fc3f7; padding: 8px 16px; background: #0d0d20; border-radius: 6px; }
+
+  .kernel-desc { font-size: 0.82rem; color: #888; margin-top: 6px; font-style: italic; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  @media (max-width: 900px) { .main-row { flex-direction: column; align-items: center; } .arrow { padding-top: 0; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 06 &middot; CNNs</div>
+  <h1>Convolution</h1>
+  <p class="subtitle">A small filter slides over an image, computing weighted sums — detecting features everywhere</p>
+
+  <div class="card">
+    <p>A <strong>convolution</strong> is just a weighted sum — the same operation a neuron does! But instead of connecting to ALL pixels,
+      a small 3×3 <strong>kernel</strong> slides across the image, computing a weighted sum at each position.
+      The output is a <strong>feature map</strong> showing where the kernel's pattern was detected.</p>
+    <p>Hover over the input image to see the kernel position. Hover over the feature map to see what was computed at that spot.</p>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Input Image</h3>
+      <div class="ds-btns" id="img-btns"></div>
+    </div>
+    <div class="ctrl">
+      <h3>Kernel (Filter)</h3>
+      <div class="ds-btns" id="kern-btns"></div>
+      <div class="kernel-desc" id="kern-desc"></div>
+    </div>
+  </div>
+
+  <!-- Main visualization -->
+  <div class="main-row">
+    <div class="vis-panel">
+      <h3>Input Image (28×28)</h3>
+      <canvas id="c-input" width="280" height="280"></canvas>
+      <div class="info" id="info-input">28 × 28 pixels</div>
+    </div>
+    <div class="arrow">★</div>
+    <div class="vis-panel">
+      <h3>Kernel (3×3)</h3>
+      <div class="kernel-grid" id="kernel-editor" style="grid-template-columns: repeat(3, 52px);"></div>
+      <div class="info">Edit values — try your own!</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="vis-panel">
+      <h3>Feature Map</h3>
+      <canvas id="c-output" width="280" height="280"></canvas>
+      <div class="info" id="info-output">26 × 26 output</div>
+    </div>
+  </div>
+
+  <!-- Step-by-step detail -->
+  <div class="step-detail">
+    <h3>Computation at Highlighted Position</h3>
+    <div class="step-grid" id="step-grid">
+      <div style="color:#555; font-size:0.85rem;">Hover over the input image or feature map to see the math</div>
+    </div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Horizontal Stripes + Vertical Edge kernel</strong> — nothing detected (no vertical edges in horizontal stripes). Now switch to Horizontal Edge kernel — lights up everywhere!</li>
+      <li><strong>Circle + All Edges</strong> — the feature map shows the circle's outline. The interior and exterior are zero — only the BOUNDARY has signal.</li>
+      <li><strong>Digit "7" + each edge kernel</strong> — horizontal edge finds the top bar, vertical edge finds the downstroke. This is how CNNs decompose shapes into parts.</li>
+      <li><strong>Edit the kernel values.</strong> Set the center to 1, everything else to 0 — that's identity (output = input). Now set center to -1 — you get an inverted image.</li>
+      <li><strong>Hover over the feature map.</strong> At each bright spot, the step detail shows exactly which 3×3 patch multiplied by which kernel values produced that output. It's just a weighted sum!</li>
+      <li><strong>Notice the output is 26×26, not 28×28.</strong> The kernel can't center on edge pixels — it loses one pixel on each border. This is why real CNNs use "padding" to keep the size.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+const SZ = 280;
+let images = {}, kernels = {};
+let curImage = null, curImageName = '';
+let curKernel = null, curKernelName = '';
+let featureMap = null, featureMapDisplay = null;
+
+function setupC(id) {
+  const c = document.getElementById(id);
+  c.width = SZ * dpr; c.height = SZ * dpr;
+  c.style.width = SZ + 'px'; c.style.height = SZ + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx };
+}
+const inC = setupC('c-input');
+const outC = setupC('c-output');
+
+function drawImage(C, data, highlight) {
+  const { ctx } = C;
+  const rows = data.length, cols = data[0].length;
+  const cs = SZ / cols;
+  ctx.clearRect(0, 0, SZ, SZ);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = Math.round(data[r][c] * 255);
+      ctx.fillStyle = `rgb(${v},${v},${v})`;
+      ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+  }
+  // Highlight kernel position
+  if (highlight) {
+    const { row, col, kSize } = highlight;
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(col * cs, row * cs, kSize * cs, kSize * cs);
+    ctx.fillStyle = 'rgba(79,195,247,0.15)';
+    ctx.fillRect(col * cs, row * cs, kSize * cs, kSize * cs);
+  }
+}
+
+function drawFeatureMap(C, data, highlight) {
+  const { ctx } = C;
+  if (!data) { ctx.clearRect(0, 0, SZ, SZ); return; }
+  const rows = data.length, cols = data[0].length;
+  const cs = SZ / cols;
+  ctx.clearRect(0, 0, SZ, SZ);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = data[r][c];
+      // Blue-white colormap
+      const R = Math.round(v * 200 + 10);
+      const G = Math.round(v * 200 + 10);
+      const B = Math.round(v * 255 + 30);
+      ctx.fillStyle = `rgb(${R},${G},${B})`;
+      ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+  }
+  if (highlight) {
+    const { row, col } = highlight;
+    ctx.strokeStyle = '#ffb74d';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(col * cs, row * cs, cs, cs);
+  }
+}
+
+function getKernelValues() {
+  const cells = document.querySelectorAll('.kernel-cell');
+  const k = [];
+  let idx = 0;
+  for (let r = 0; r < 3; r++) {
+    const row = [];
+    for (let c = 0; c < 3; c++) {
+      row.push(parseFloat(cells[idx].value) || 0);
+      idx++;
+    }
+    k.push(row);
+  }
+  return k;
+}
+
+function setKernelValues(kernel) {
+  const cells = document.querySelectorAll('.kernel-cell');
+  let idx = 0;
+  for (let r = 0; r < kernel.length; r++) {
+    for (let c = 0; c < kernel[0].length; c++) {
+      const v = kernel[r][c];
+      cells[idx].value = Number.isInteger(v) ? v : v.toFixed(2);
+      // Color: negative=red, positive=green, zero=gray
+      if (v > 0) cells[idx].style.color = '#66bb6a';
+      else if (v < 0) cells[idx].style.color = '#ef5350';
+      else cells[idx].style.color = '#555';
+      idx++;
+    }
+  }
+}
+
+function buildKernelEditor() {
+  const el = document.getElementById('kernel-editor');
+  el.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'kernel-cell';
+    inp.value = '0';
+    inp.addEventListener('change', applyKernel);
+    el.appendChild(inp);
+  }
+}
+
+async function applyKernel() {
+  if (!curImage) return;
+  const kernel = getKernelValues();
+  const resp = await fetch('api/apply', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: curImage, kernel }),
+  });
+  const data = await resp.json();
+  featureMap = data.feature_map;
+  featureMapDisplay = data.feature_map_display;
+  drawFeatureMap(outC, featureMapDisplay);
+  document.getElementById('info-output').textContent =
+    `${data.fm_shape[0]} × ${data.fm_shape[1]} output  |  range [${data.fm_min.toFixed(2)}, ${data.fm_max.toFixed(2)}]`;
+}
+
+async function showStep(row, col) {
+  if (!curImage) return;
+  const kernel = getKernelValues();
+  const resp = await fetch('api/step', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: curImage, kernel, row, col }),
+  });
+  if (!resp.ok) return;
+  const data = await resp.json();
+
+  const el = document.getElementById('step-grid');
+  let html = '';
+
+  // Patch grid
+  html += '<div><div style="font-size:0.72rem;color:#888;text-align:center;margin-bottom:4px">Image Patch</div>';
+  html += `<div class="step-mini" style="grid-template-columns:repeat(3,42px)">`;
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const v = data.patch[r][c];
+      const bg = Math.round(v * 200 + 30);
+      html += `<div class="step-cell" style="background:rgb(${bg},${bg},${bg});color:${v>0.5?'#000':'#fff'}">${v.toFixed(1)}</div>`;
+    }
+  }
+  html += '</div></div>';
+
+  html += '<div class="step-op">×</div>';
+
+  // Kernel grid
+  html += '<div><div style="font-size:0.72rem;color:#888;text-align:center;margin-bottom:4px">Kernel</div>';
+  html += `<div class="step-mini" style="grid-template-columns:repeat(3,42px)">`;
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const v = data.kernel[r][c];
+      const col = v > 0 ? '#1b3a1b' : v < 0 ? '#3a1b1b' : '#1a1a2a';
+      const tc = v > 0 ? '#66bb6a' : v < 0 ? '#ef5350' : '#555';
+      html += `<div class="step-cell" style="background:${col};color:${tc}">${Number.isInteger(v) ? v : v.toFixed(2)}</div>`;
+    }
+  }
+  html += '</div></div>';
+
+  html += '<div class="step-op">=</div>';
+
+  // Products grid
+  html += '<div><div style="font-size:0.72rem;color:#888;text-align:center;margin-bottom:4px">Element-wise</div>';
+  html += `<div class="step-mini" style="grid-template-columns:repeat(3,42px)">`;
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const v = data.products[r][c];
+      const col = v > 0 ? '#66bb6a' : v < 0 ? '#ef5350' : '#555';
+      html += `<div class="step-cell" style="background:#0d0d20;color:${col}">${v.toFixed(2)}</div>`;
+    }
+  }
+  html += '</div></div>';
+
+  html += '<div class="step-op">→ Σ =</div>';
+  html += `<div class="step-result">${data.sum.toFixed(3)}</div>`;
+
+  el.innerHTML = html;
+}
+
+// Mouse handlers
+inC.c.addEventListener('mousemove', (e) => {
+  if (!curImage) return;
+  const rect = inC.c.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top) / rect.height;
+  const col = Math.floor(x * curImage[0].length);
+  const row = Math.floor(y * curImage.length);
+  const kSize = 3;
+  const kr = Math.min(row, curImage.length - kSize);
+  const kc = Math.min(col, curImage[0].length - kSize);
+  drawImage(inC, curImage, { row: kr, col: kc, kSize });
+  if (featureMapDisplay) {
+    drawFeatureMap(outC, featureMapDisplay, { row: kr, col: kc });
+  }
+  showStep(kr, kc);
+});
+
+inC.c.addEventListener('mouseleave', () => {
+  if (curImage) drawImage(inC, curImage);
+  if (featureMapDisplay) drawFeatureMap(outC, featureMapDisplay);
+});
+
+outC.c.addEventListener('mousemove', (e) => {
+  if (!featureMapDisplay) return;
+  const rect = outC.c.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top) / rect.height;
+  const rows = featureMapDisplay.length, cols = featureMapDisplay[0].length;
+  const col = Math.min(Math.floor(x * cols), cols - 1);
+  const row = Math.min(Math.floor(y * rows), rows - 1);
+  drawFeatureMap(outC, featureMapDisplay, { row, col });
+  if (curImage) drawImage(inC, curImage, { row, col, kSize: 3 });
+  showStep(row, col);
+});
+
+outC.c.addEventListener('mouseleave', () => {
+  if (curImage) drawImage(inC, curImage);
+  if (featureMapDisplay) drawFeatureMap(outC, featureMapDisplay);
+});
+
+// Init
+async function init() {
+  buildKernelEditor();
+
+  const [imgResp, kernResp] = await Promise.all([
+    fetch('api/images').then(r => r.json()),
+    fetch('api/kernels').then(r => r.json()),
+  ]);
+  images = imgResp;
+  kernels = kernResp;
+
+  // Build buttons
+  const imgEl = document.getElementById('img-btns');
+  for (const [id, info] of Object.entries(images)) {
+    const btn = document.createElement('button');
+    btn.className = 'ds-btn';
+    btn.textContent = info.name;
+    btn.dataset.id = id;
+    btn.addEventListener('click', () => selectImage(id));
+    imgEl.appendChild(btn);
+  }
+
+  const kernEl = document.getElementById('kern-btns');
+  for (const [id, info] of Object.entries(kernels)) {
+    const btn = document.createElement('button');
+    btn.className = 'ds-btn';
+    btn.textContent = info.name;
+    btn.dataset.id = id;
+    btn.addEventListener('click', () => selectKernel(id));
+    kernEl.appendChild(btn);
+  }
+
+  selectImage('circle');
+  selectKernel('edge_all');
+}
+
+function selectImage(id) {
+  curImageName = id;
+  curImage = images[id].data;
+  document.querySelectorAll('#img-btns .ds-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+  drawImage(inC, curImage);
+  applyKernel();
+}
+
+function selectKernel(id) {
+  curKernelName = id;
+  curKernel = kernels[id].kernel;
+  document.querySelectorAll('#kern-btns .ds-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+  setKernelValues(curKernel);
+  document.getElementById('kern-desc').textContent = kernels[id].desc;
+  applyKernel();
+}
+
+init();
+</script>
+</body>
+</html>
