@@ -175,6 +175,17 @@ MODULES = [
         'path': '05-training-techniques/03-regularization',
         'status': 'ready',
     },
+    {
+        'id': '05-4',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '05',
+        'group_name': 'Training Techniques',
+        'title': 'Data Normalization',
+        'desc': 'Why raw data breaks training and how scaling your inputs fixes it.',
+        'path': '05-training-techniques/04-normalization',
+        'status': 'ready',
+    },
 ]
 
 
@@ -619,6 +630,23 @@ def m05_3_compare():
         lr=float(data.get('lr', 0.5)),
         l2_lambda=float(data.get('l2_lambda', 0.01)),
         dropout_rate=float(data.get('dropout_rate', 0.5)),
+    ))
+
+
+# =============================================================
+# MODULE 05-4: Data Normalization
+# =============================================================
+@app.route('/05-4/')
+def m05_4_page():
+    return send_file(os.path.join(BASE, '05-training-techniques/04-normalization/templates/index.html'))
+
+@app.route('/05-4/api/compare', methods=['POST'])
+def m05_4_compare():
+    data = request.json
+    return jsonify(nn['05-4'].train_comparison(
+        epochs=int(data.get('epochs', 100)),
+        lr=float(data.get('lr', 0.5)),
+        scale_ratio=float(data.get('scale_ratio', 100)),
     ))
 
 

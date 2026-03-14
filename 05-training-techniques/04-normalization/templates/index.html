@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05.4 — Data Normalization</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.85rem; line-height: 2.2; margin: 14px 0; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; min-width: 150px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .slider-row { display: flex; align-items: center; gap: 6px; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .sv { font-family: Consolas, monospace; font-size: 0.88rem; width: 48px; text-align: right; color: #fff; font-weight: 700; }
+  .run-btn { padding: 10px 20px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+  .run-btn:hover { background: rgba(79,195,247,0.1); }
+
+  /* Data range display */
+  .range-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .range-card { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; }
+  .range-card h3 { font-size: 0.82rem; font-weight: 700; margin-bottom: 8px; }
+  .range-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .range-label { font-family: Consolas, monospace; font-size: 0.78rem; color: #888; width: 24px; }
+  .range-vis { flex: 1; height: 16px; background: #0d0d20; border-radius: 4px; position: relative; overflow: hidden; }
+  .range-fill { height: 100%; border-radius: 4px; }
+  .range-vals { font-family: Consolas, monospace; font-size: 0.72rem; color: #666; width: 140px; text-align: right; }
+
+  .triple { display: flex; gap: 14px; margin-bottom: 16px; }
+  .panel { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; text-align: center; }
+  .panel h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+  .panel .meta { font-size: 0.72rem; color: #666; margin-bottom: 6px; font-family: Consolas, monospace; }
+  .panel canvas { display: block; margin: 0 auto; border-radius: 6px; }
+  .panel .stats { display: flex; gap: 6px; margin-top: 8px; justify-content: center; }
+  .panel .stat { text-align: center; flex: 1; }
+  .panel .stat .lbl { font-size: 0.62rem; color: #555; text-transform: uppercase; }
+  .panel .stat .val { font-family: Consolas, monospace; font-size: 0.82rem; font-weight: 700; }
+
+  .chart-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 0.9rem; color: #fff; margin-bottom: 6px; }
+  .chart-card canvas { display: block; border-radius: 6px; width: 100%; }
+  .legend-row { display: flex; gap: 14px; justify-content: center; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; font-family: Consolas, monospace; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  @media (max-width: 900px) { .triple, .range-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 05 &middot; Training Techniques</div>
+  <h1>Data Normalization</h1>
+  <p class="subtitle">Why raw data breaks training and how scaling your inputs fixes it</p>
+
+  <div class="card">
+    <p>Same moons dataset, but <strong>x1 is scaled up 100×</strong> to simulate real-world data where features have different units
+      (e.g., house price in dollars vs number of rooms). The gradient for w1 becomes 100× bigger than w2.</p>
+    <div class="formula-box">
+      <span style="color:#ef5350">Raw:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; x1 ∈ [-150, 150], &nbsp; x2 ∈ [-1.5, 1.5] &nbsp; — gradients wildly imbalanced<br>
+      <span style="color:#ffb74d">Standardized:</span> x = (x - mean) / std &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; — both features: mean=0, std=1<br>
+      <span style="color:#66bb6a">Min-Max:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; x = (x - min) / (max - min) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; — both features: range [0, 1]
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Scale Ratio (x1 ÷ x2)</h3>
+      <div class="slider-row">
+        <input type="range" id="s-scale" min="1" max="3" step="0.25" value="2">
+        <span class="sv" id="v-scale">100</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Epochs</h3>
+      <div class="slider-row">
+        <input type="range" id="s-ep" min="25" max="200" step="25" value="100">
+        <span class="sv" id="v-ep">100</span>
+      </div>
+    </div>
+    <button class="run-btn" id="btn-run">▶ Run Comparison</button>
+  </div>
+
+  <!-- Data ranges -->
+  <div class="range-row" id="range-display"></div>
+
+  <!-- Three panels -->
+  <div class="triple">
+    <div class="panel">
+      <h3 style="color:#ef5350">Raw (No Normalization)</h3>
+      <div class="meta">LR scaled down 10000× to not explode</div>
+      <canvas id="c-raw" width="320" height="320"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Loss</div><div class="val" id="s-raw-l">--</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val" id="s-raw-a">--</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 style="color:#ffb74d">Standardized (z-score)</h3>
+      <div class="meta">mean=0, std=1 per feature</div>
+      <canvas id="c-std" width="320" height="320"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Loss</div><div class="val" id="s-std-l">--</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val" id="s-std-a">--</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 style="color:#66bb6a">Min-Max [0, 1]</h3>
+      <div class="meta">all features in [0, 1]</div>
+      <canvas id="c-mm" width="320" height="320"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Loss</div><div class="val" id="s-mm-l">--</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val" id="s-mm-a">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loss chart -->
+  <div class="chart-card">
+    <h3>Loss Over Training</h3>
+    <div class="legend-row">
+      <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div>Raw</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffb74d"></div>Standardized</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#66bb6a"></div>Min-Max</div>
+    </div>
+    <canvas id="loss-chart" width="1140" height="240"></canvas>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Run with default scale ratio 100×.</strong> The raw network barely learns — its learning rate had to be cut 10,000× just to survive. Standardized and min-max both converge quickly.</li>
+      <li><strong>Set scale ratio to 1× (equal scales).</strong> Now raw data works fine! The problem only appears when features have different magnitudes.</li>
+      <li><strong>Increase to 1000×.</strong> Raw data becomes nearly impossible to train. Normalized methods are unaffected — that's the point.</li>
+      <li><strong>Look at the raw data heatmap.</strong> The boundary is nearly vertical because the network can only "see" the dominant feature (x1). The small feature (x2) is noise to it.</li>
+      <li><strong>This is a preprocessing step, not a training trick.</strong> You normalize ONCE before training. It costs nothing and almost always helps. There's no reason not to do it.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const COLS = { raw: '#ef5350', standardized: '#ffb74d', minmax: '#66bb6a' };
+const dpr = window.devicePixelRatio || 1;
+
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+
+const canvases = {
+  raw: setupC('c-raw', 320, 320),
+  standardized: setupC('c-std', 320, 320),
+  minmax: setupC('c-mm', 320, 320),
+};
+const lossC = setupC('loss-chart', 1140, 240);
+
+function drawHeatmap(C, heatmap, points, info) {
+  const { ctx, w: SZ } = C;
+  ctx.clearRect(0, 0, SZ, SZ);
+  if (!heatmap) return;
+  const res = heatmap.length, cs = SZ / res;
+  for (let r = 0; r < res; r++) {
+    for (let c = 0; c < res; c++) {
+      const p = heatmap[res - 1 - r][c];
+      ctx.fillStyle = `rgb(${Math.round(255*(1-p)*0.4+15)},${Math.round(120+40*(2*p-1))},${Math.round(255*p*0.4+30)})`;
+      ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+  }
+  // Boundary
+  for (let r = 0; r < res - 1; r++) {
+    for (let c = 0; c < res - 1; c++) {
+      const v = heatmap[res - 1 - r][c];
+      const vr = heatmap[res - 1 - r][c + 1];
+      const vb = (res - 2 - r >= 0) ? heatmap[res - 2 - r][c] : v;
+      if ((v >= 0.5) !== (vr >= 0.5) || (v >= 0.5) !== (vb >= 0.5)) {
+        ctx.fillStyle = '#ffffff50';
+        ctx.fillRect(c * cs, r * cs, cs, cs);
+      }
+    }
+  }
+  if (points && info) {
+    const x1r = info.x1_range, x2r = info.x2_range;
+    const pad1 = (x1r[1] - x1r[0]) * 0.1, pad2 = (x2r[1] - x2r[0]) * 0.1;
+    const x1min = x1r[0] - pad1, x1max = x1r[1] + pad1;
+    const x2min = x2r[0] - pad2, x2max = x2r[1] + pad2;
+    for (const p of points) {
+      const px = ((p.x1 - x1min) / (x1max - x1min)) * SZ;
+      const py = SZ - ((p.x2 - x2min) / (x2max - x2min)) * SZ;
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = p.label === 'A' ? '#4fc3f7' : '#ffb74d'; ctx.fill();
+      ctx.strokeStyle = '#00000060'; ctx.lineWidth = 0.5; ctx.stroke();
+    }
+  }
+}
+
+function drawChart(C, datasets) {
+  const { ctx, w: W, h: H } = C;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 50, r: 10, t: 8, b: 24 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+  let allVals = [];
+  for (const ds of datasets) allVals.push(...ds.values);
+  if (!allVals.length) return;
+  const maxY = Math.min(Math.max(...allVals) * 1.1, 2);
+  const maxX = Math.max(...datasets.map(ds => ds.values.length));
+  function gx(i) { return pad.l + (i / (maxX - 1)) * gw; }
+  function gy(v) { return pad.t + gh - (Math.min(v, maxY) / maxY) * gh; }
+
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (gh / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
+    ctx.fillText((maxY - maxY * i / 4).toFixed(2), pad.l - 4, y + 4);
+  }
+
+  for (const ds of datasets) {
+    ctx.beginPath(); ctx.strokeStyle = ds.color; ctx.lineWidth = 2.5;
+    for (let i = 0; i < ds.values.length; i++) {
+      i === 0 ? ctx.moveTo(gx(i), gy(ds.values[i])) : ctx.lineTo(gx(i), gy(ds.values[i]));
+    }
+    ctx.stroke();
+  }
+}
+
+function updateRangeDisplay(info) {
+  const el = document.getElementById('range-display');
+  let html = '';
+  const configs = [
+    { key: 'raw', name: 'Raw', color: '#ef5350' },
+    { key: 'standardized', name: 'Standardized', color: '#ffb74d' },
+    { key: 'minmax', name: 'Min-Max', color: '#66bb6a' },
+  ];
+
+  // Find global max range for bar scaling
+  let globalMax = 0;
+  for (const c of configs) {
+    const d = info[c.key];
+    globalMax = Math.max(globalMax, d.x1_range[1] - d.x1_range[0], d.x2_range[1] - d.x2_range[0]);
+  }
+
+  for (const c of configs) {
+    const d = info[c.key];
+    const r1 = d.x1_range[1] - d.x1_range[0];
+    const r2 = d.x2_range[1] - d.x2_range[0];
+    const pct1 = (r1 / globalMax) * 100;
+    const pct2 = (r2 / globalMax) * 100;
+    html += `<div class="range-card">
+      <h3 style="color:${c.color}">${c.name}</h3>
+      <div class="range-bar">
+        <span class="range-label">x1</span>
+        <div class="range-vis"><div class="range-fill" style="width:${pct1}%; background:${c.color}"></div></div>
+        <span class="range-vals">[${d.x1_range[0].toFixed(1)}, ${d.x1_range[1].toFixed(1)}]</span>
+      </div>
+      <div class="range-bar">
+        <span class="range-label">x2</span>
+        <div class="range-vis"><div class="range-fill" style="width:${Math.max(pct2, 1)}%; background:${c.color}; opacity:0.6"></div></div>
+        <span class="range-vals">[${d.x2_range[0].toFixed(1)}, ${d.x2_range[1].toFixed(1)}]</span>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+// Slider handlers
+document.getElementById('s-scale').addEventListener('input', () => {
+  const v = Math.round(Math.pow(10, parseFloat(document.getElementById('s-scale').value)));
+  document.getElementById('v-scale').textContent = v;
+});
+document.getElementById('s-ep').addEventListener('input', () => {
+  document.getElementById('v-ep').textContent = document.getElementById('s-ep').value;
+});
+
+document.getElementById('btn-run').addEventListener('click', runComparison);
+
+async function runComparison() {
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '⏳ Training...'; btn.disabled = true;
+  try {
+    const scale = Math.round(Math.pow(10, parseFloat(document.getElementById('s-scale').value)));
+    const resp = await fetch('api/compare', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        epochs: parseInt(document.getElementById('s-ep').value),
+        scale_ratio: scale,
+      }),
+    });
+    const data = await resp.json();
+
+    updateRangeDisplay(data.data_info);
+
+    const nameMap = { raw: 'raw', standardized: 'std', minmax: 'mm' };
+    for (const name of ['raw', 'standardized', 'minmax']) {
+      drawHeatmap(canvases[name], data.heatmaps[name], data.points[name], data.data_info[name]);
+      const last = data.results[name][data.results[name].length - 1];
+      const sid = nameMap[name];
+      document.getElementById(`s-${sid}-l`).textContent = last.loss.toFixed(4);
+      const pct = Math.round(last.accuracy * 100);
+      document.getElementById(`s-${sid}-a`).textContent = pct + '%';
+      document.getElementById(`s-${sid}-a`).style.color = pct >= 85 ? '#66bb6a' : pct >= 70 ? '#ffb74d' : '#ef5350';
+    }
+
+    drawChart(lossC, [
+      { values: data.results.raw.map(r => r.loss), color: COLS.raw },
+      { values: data.results.standardized.map(r => r.loss), color: COLS.standardized },
+      { values: data.results.minmax.map(r => r.loss), color: COLS.minmax },
+    ]);
+  } finally {
+    btn.textContent = '▶ Run Comparison'; btn.disabled = false;
+  }
+}
+
+runComparison();
+</script>
+</body>
+</html>
