@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03.3 — Gradient Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.92rem; text-align: center; margin: 14px 0; line-height: 1.8; }
+
+  .controls-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 180px; }
+  .ctrl h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 8px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; }
+  .sl { font-family: Consolas, monospace; font-size: 0.85rem; color: #9e9e9e; width: 55px; text-align: right; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .sv { font-family: Consolas, monospace; font-size: 0.95rem; width: 35px; text-align: right; color: #fff; font-weight: 700; }
+
+  /* Comparison layout */
+  .compare { display: flex; gap: 24px; margin-bottom: 24px; }
+  .compare-panel { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px; }
+  .compare-panel h3 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; text-align: center; }
+  .compare-panel canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  .layer-bars { margin-top: 12px; }
+  .layer-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .lb-label { font-family: Consolas, monospace; font-size: 0.78rem; width: 55px; text-align: right; color: #888; }
+  .lb-bar-bg { flex: 1; height: 20px; background: #0d0d20; border-radius: 4px; overflow: hidden; position: relative; }
+  .lb-bar { height: 100%; border-radius: 4px; transition: width 0.3s; min-width: 2px; }
+  .lb-val { font-family: Consolas, monospace; font-size: 0.78rem; width: 75px; color: #aaa; }
+
+  /* Sweep chart */
+  .sweep-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .sweep-card h3 { font-size: 1rem; color: #fff; margin-bottom: 12px; }
+  .sweep-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 7px 0 7px 28px; position: relative; color: #c0c0d0; font-size: 0.93rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+
+  @media (max-width: 800px) { .compare { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 03 &middot; Backpropagation</div>
+  <h1>Gradient Flow</h1>
+  <p class="subtitle">Why gradients vanish in deep networks — and how ReLU fixes it</p>
+
+  <div class="card">
+    <p>Gradients are a <strong>product</strong> of local derivatives. In a deep network with sigmoid activations,
+      each local derivative is at most 0.25. Multiply enough of them together and the gradient vanishes:</p>
+    <div class="formula-box">
+      <span style="color:#ef5350">Sigmoid:</span> 0.25 &times; 0.25 &times; 0.25 &times; 0.25 &times; 0.25 &times; 0.25 &times; 0.25 &times; 0.25 = <strong style="color:#ef5350">0.0000153</strong><br>
+      <span style="color:#66bb6a">ReLU:</span>&nbsp;&nbsp;&nbsp; 1 &times; 1 &times; 1 &times; 1 &times; 1 &times; 1 &times; 1 &times; 1 = <strong style="color:#66bb6a">1.0</strong>
+    </div>
+    <p>This is why <span style="color:#ef5350">sigmoid fell out of favor</span> for deep networks and
+      <span style="color:#66bb6a">ReLU became the default</span>. Compare them side by side below.</p>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Network Depth</h3>
+      <div class="slider-row">
+        <span class="sl">layers</span>
+        <input type="range" id="s-depth" min="2" max="10" step="1" value="6">
+        <span class="sv" id="v-depth">6</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Weight Scale</h3>
+      <div class="slider-row">
+        <span class="sl">scale</span>
+        <input type="range" id="s-scale" min="0.3" max="2.5" step="0.1" value="1.0">
+        <span class="sv" id="v-scale">1.0</span>
+      </div>
+    </div>
+    <div class="python-badge">Computed by Python &mdash; see <code>nn_code.py</code></div>
+  </div>
+
+  <!-- Side by side comparison -->
+  <div class="compare">
+    <div class="compare-panel">
+      <h3 style="color:#ef5350">Sigmoid</h3>
+      <div id="sig-bars" class="layer-bars"></div>
+    </div>
+    <div class="compare-panel">
+      <h3 style="color:#66bb6a">ReLU</h3>
+      <div id="relu-bars" class="layer-bars"></div>
+    </div>
+  </div>
+
+  <!-- Depth sweep chart -->
+  <div class="sweep-card">
+    <h3>Gradient at First Layer vs Network Depth</h3>
+    <canvas id="sweep-canvas" width="1040" height="260"></canvas>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Start at depth=2.</strong> Both sigmoid and ReLU look fine. Now drag to depth=8. Watch sigmoid's early layers turn dark red — the gradient is effectively zero. ReLU stays healthy.</li>
+      <li><strong>Go to depth=10 with sigmoid.</strong> Layer 0's gradient is astronomically small. That layer will NEVER learn. This is why early deep learning was stuck at ~3 layers.</li>
+      <li><strong>Increase weight scale to 2.0+ with sigmoid.</strong> Now gradients might EXPLODE instead of vanish — the product of large numbers grows exponentially. Neither extreme works.</li>
+      <li><strong>Look at the depth sweep chart.</strong> Sigmoid's first-layer gradient drops exponentially with depth (straight line down on log scale). ReLU stays roughly flat.</li>
+      <li><strong>Notice ReLU isn't perfect either.</strong> Some layers show zero gradient — those are "dead neurons" where ReLU output is 0. The gradient passes through as 0. This is a known tradeoff.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const COL_SIG = '#ef5350';
+const COL_RELU = '#66bb6a';
+
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+const swC = setupC('sweep-canvas', 1040, 260);
+
+function getParams() {
+  return {
+    num_layers: parseInt(document.getElementById('s-depth').value),
+    weight_scale: parseFloat(document.getElementById('s-scale').value),
+  };
+}
+
+function renderBars(containerId, layers, color, maxMag) {
+  const el = document.getElementById(containerId);
+  let html = '';
+  for (const g of layers) {
+    const pct = maxMag > 0 ? Math.min((g.magnitude / maxMag) * 100, 100) : 0;
+    // Color: bright when healthy, dark when vanishing
+    const intensity = Math.min(g.magnitude / maxMag, 1);
+    const barColor = intensity > 0.01 ? color : '#333';
+    const opacity = Math.max(0.15, Math.min(1, intensity * 3));
+    html += `<div class="layer-bar-row">
+      <span class="lb-label">Layer ${g.layer}</span>
+      <div class="lb-bar-bg">
+        <div class="lb-bar" style="width:${Math.max(pct, 0.5)}%; background:${barColor}; opacity:${opacity}"></div>
+      </div>
+      <span class="lb-val">${g.magnitude < 0.0001 ? g.magnitude.toExponential(1) : g.magnitude.toFixed(5)}</span>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function drawSweep(sigData, reluData) {
+  const { ctx, w: W, h: H } = swC;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 70, r: 20, t: 20, b: 36 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  // Collect all values for y-axis range (log scale)
+  const allVals = [...sigData.map(d => d.first_layer_grad), ...reluData.map(d => d.first_layer_grad)].filter(v => v > 0);
+  if (allVals.length === 0) return;
+
+  const logMin = Math.floor(Math.log10(Math.min(...allVals))) - 1;
+  const logMax = Math.ceil(Math.log10(Math.max(...allVals))) + 1;
+  const maxDepth = Math.max(sigData[sigData.length - 1].depth, reluData[reluData.length - 1].depth);
+  const minDepth = 2;
+
+  function gx(d) { return pad.l + ((d - minDepth) / (maxDepth - minDepth)) * gw; }
+  function gy(v) {
+    if (v <= 0) return pad.t + gh;
+    const logV = Math.log10(v);
+    return pad.t + gh - ((logV - logMin) / (logMax - logMin)) * gh;
+  }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (let e = logMin; e <= logMax; e++) {
+    const y = gy(Math.pow(10, e));
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + gh); ctx.lineTo(pad.l + gw, pad.t + gh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + gh); ctx.stroke();
+
+  // Y-axis labels
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#555'; ctx.textAlign = 'right';
+  for (let e = logMin; e <= logMax; e++) {
+    ctx.fillText(`1e${e}`, pad.l - 6, gy(Math.pow(10, e)) + 4);
+  }
+
+  // X-axis labels
+  ctx.textAlign = 'center';
+  for (let d = minDepth; d <= maxDepth; d++) {
+    ctx.fillText(d, gx(d), pad.t + gh + 16);
+  }
+  ctx.fillText('Network Depth (layers)', pad.l + gw / 2, H - 4);
+  ctx.save(); ctx.translate(14, pad.t + gh / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Gradient at Layer 0 (log)', 0, 0); ctx.restore();
+
+  // Sigmoid curve
+  ctx.beginPath(); ctx.strokeStyle = COL_SIG; ctx.lineWidth = 3;
+  for (let i = 0; i < sigData.length; i++) {
+    const x = gx(sigData[i].depth), y = gy(sigData[i].first_layer_grad);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  for (const d of sigData) {
+    ctx.beginPath(); ctx.arc(gx(d.depth), gy(d.first_layer_grad), 4, 0, Math.PI * 2);
+    ctx.fillStyle = COL_SIG; ctx.fill();
+  }
+
+  // ReLU curve
+  ctx.beginPath(); ctx.strokeStyle = COL_RELU; ctx.lineWidth = 3;
+  for (let i = 0; i < reluData.length; i++) {
+    const v = reluData[i].first_layer_grad || 1e-20;
+    const x = gx(reluData[i].depth), y = gy(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  for (const d of reluData) {
+    const v = d.first_layer_grad || 1e-20;
+    ctx.beginPath(); ctx.arc(gx(d.depth), gy(v), 4, 0, Math.PI * 2);
+    ctx.fillStyle = COL_RELU; ctx.fill();
+  }
+
+  // Legend
+  ctx.font = '700 12px Consolas';
+  ctx.fillStyle = COL_SIG; ctx.textAlign = 'left'; ctx.fillText('Sigmoid', pad.l + 10, pad.t + 16);
+  ctx.fillStyle = COL_RELU; ctx.fillText('ReLU', pad.l + 10, pad.t + 32);
+}
+
+async function update() {
+  document.getElementById('v-depth').textContent = document.getElementById('s-depth').value;
+  document.getElementById('v-scale').textContent = parseFloat(document.getElementById('s-scale').value).toFixed(1);
+
+  const params = getParams();
+
+  // Get layer-by-layer comparison
+  const resp1 = await fetch('api/simulate', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(params),
+  });
+  const data = await resp1.json();
+
+  // Find global max for consistent bar scaling
+  const allMags = [...data.sigmoid.layers.map(l => l.magnitude), ...data.relu.layers.map(l => l.magnitude)];
+  const maxMag = Math.max(...allMags) || 0.01;
+
+  renderBars('sig-bars', data.sigmoid.layers, COL_SIG, maxMag);
+  renderBars('relu-bars', data.relu.layers, COL_RELU, maxMag);
+
+  // Get depth sweep
+  const resp2 = await fetch('api/sweep', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(params),
+  });
+  const sweep = await resp2.json();
+  drawSweep(sweep.sigmoid, sweep.relu);
+}
+
+document.getElementById('s-depth').addEventListener('input', update);
+document.getElementById('s-scale').addEventListener('input', update);
+
+update();
+</script>
+</body>
+</html>

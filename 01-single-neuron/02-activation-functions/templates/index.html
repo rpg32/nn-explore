@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01.2 — Activation Functions</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .module-tag {
+    display: inline-block; background: rgba(79,195,247,0.15);
+    color: #4fc3f7; padding: 4px 14px; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 10px;
+  }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .back-link {
+    display: inline-block; color: #555; text-decoration: none;
+    font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s;
+  }
+  .back-link:hover { color: #4fc3f7; }
+
+  .card {
+    background: #111128; border: 1px solid #1e1e3a;
+    border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+  }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+  .card p:last-child { margin-bottom: 0; }
+
+  .formula-box {
+    background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 14px 24px; font-family: Consolas, monospace;
+    color: #4fc3f7; font-size: 1.05rem; text-align: center; margin: 14px 0;
+  }
+
+  /* Two-panel layout */
+  .demo { display: flex; gap: 24px; margin-bottom: 24px; }
+  .graph-panel { flex: 1; }
+  .graph-panel canvas { display: block; border-radius: 8px; width: 100%; }
+  .side-panel { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Activation selector buttons */
+  .fn-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .fn-btn {
+    padding: 8px 18px; border-radius: 8px; border: 2px solid #2a2a4a;
+    background: #0d0d20; color: #9e9e9e; font-family: Consolas, monospace;
+    font-size: 0.9rem; cursor: pointer; transition: all 0.15s;
+  }
+  .fn-btn:hover { border-color: #555; color: #e0e0e0; }
+  .fn-btn.active { color: #fff; font-weight: 700; }
+
+  /* Slider */
+  .slider-section { margin-top: 4px; }
+  .slider-section label {
+    display: block; font-size: 0.85rem; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 8px;
+  }
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  input[type="range"] {
+    flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px;
+    background: #2a2a4a; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px;
+    border-radius: 50%; background: #4fc3f7; cursor: pointer;
+  }
+  .slider-value {
+    font-family: Consolas, monospace; font-size: 0.95rem;
+    width: 60px; text-align: right;
+  }
+
+  /* Output display */
+  .output-box {
+    background: #0d0d20; border-radius: 8px; padding: 16px; text-align: center;
+  }
+  .output-box .label { font-size: 0.85rem; color: #9e9e9e; font-family: Consolas, monospace; }
+  .output-box .value { font-size: 2rem; font-weight: 700; font-family: Consolas, monospace; }
+  .output-box .fn-name { font-size: 0.85rem; margin-top: 4px; }
+
+  /* Results table */
+  .results-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .results-table th, .results-table td {
+    padding: 8px 12px; text-align: left; font-family: Consolas, monospace;
+    font-size: 0.9rem; border-bottom: 1px solid #1e1e3a;
+  }
+  .results-table th { color: #9e9e9e; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  .results-table .fn-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px;
+  }
+
+  /* Linearity section */
+  .linearity-demo { display: flex; gap: 24px; align-items: center; }
+  .linearity-demo canvas { border-radius: 8px; }
+  .linearity-text { flex: 1; }
+
+  .highlight { color: #4fc3f7; font-weight: 600; }
+  .positive { color: #66bb6a; }
+  .negative { color: #ef5350; }
+
+  .challenges {
+    background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2);
+    border-radius: 12px; padding: 24px 28px;
+  }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; font-size: 1.0rem; }
+  .challenges ul { list-style: none; padding: 0; }
+  .challenges li {
+    padding: 8px 0; padding-left: 28px; position: relative;
+    color: #c0c0d0; font-size: 0.95rem;
+  }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a;
+  }
+
+  @media (max-width: 800px) {
+    .demo { flex-direction: column; }
+    .side-panel { width: 100%; }
+    .linearity-demo { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 01 - The Single Neuron</div>
+  <h1>Activation Functions</h1>
+  <p class="subtitle">Why a neuron needs more than just a weighted sum</p>
+
+  <!-- Explanation -->
+  <div class="card">
+    <p>
+      In Module 01.1, our neuron computed a <span class="highlight">weighted sum</span> and that was the output.
+      But a weighted sum is just a <strong>linear function</strong> &mdash; a straight line.
+      Stack a thousand linear neurons together and you still just get... a straight line.
+    </p>
+    <div class="formula-box">
+      output = <span style="color:#ffb74d">activation</span>( w&#8321; &times; x&#8321; + w&#8322; &times; x&#8322; + w&#8323; &times; x&#8323; + bias )
+    </div>
+    <p>
+      An <span style="color:#ffb74d">activation function</span> is applied <em>after</em> the weighted sum.
+      It introduces a <strong>nonlinear bend</strong> that gives neural networks the ability
+      to learn curves, boundaries, and complex patterns. Without it, no amount of layers would help.
+    </p>
+  </div>
+
+  <!-- Main interactive demo -->
+  <div class="demo">
+    <div class="graph-panel">
+      <div class="card" style="padding: 16px;">
+        <canvas id="graph-canvas" width="700" height="420"></canvas>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="card">
+        <h3>Activation Function</h3>
+        <div class="fn-buttons">
+          <button class="fn-btn active" data-fn="step" style="--c:#ef5350">Step</button>
+          <button class="fn-btn" data-fn="sigmoid" style="--c:#4fc3f7">Sigmoid</button>
+          <button class="fn-btn" data-fn="tanh" style="--c:#66bb6a">Tanh</button>
+          <button class="fn-btn" data-fn="relu" style="--c:#ffb74d">ReLU</button>
+        </div>
+        <p id="fn-description" style="font-size:0.88rem; color:#9e9e9e; min-height: 36px;"></p>
+      </div>
+
+      <div class="card">
+        <div class="slider-section">
+          <label>Input (weighted sum)</label>
+          <div class="slider-row">
+            <span style="font-family:Consolas,monospace; color:#4fc3f7; font-size:0.9rem;">x</span>
+            <input type="range" id="input-slider" min="-6" max="6" step="0.05" value="0.5">
+            <span class="slider-value" id="input-val" style="color:#4fc3f7">0.50</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="output-box">
+          <div class="label">Input &rarr; Output</div>
+          <div><span id="out-input" class="value" style="font-size:1.3rem; color:#4fc3f7">0.50</span>
+            <span style="color:#555; font-size:1.3rem"> &rarr; </span>
+            <span id="out-value" class="value" style="font-size:1.3rem;">0.62</span></div>
+          <div id="out-fn-name" class="fn-name" style="color:#9e9e9e;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>All Functions at x = <span id="compare-x">0.50</span></h3>
+        <table class="results-table">
+          <thead><tr><th>Function</th><th>Output</th></tr></thead>
+          <tbody id="compare-body"></tbody>
+        </table>
+      </div>
+
+      <div class="python-badge">Computed by Python &mdash; see <code>nn_code.py</code></div>
+    </div>
+  </div>
+
+  <!-- Linearity problem -->
+  <div class="card">
+    <h3>Why Nonlinearity Matters</h3>
+    <div class="linearity-demo">
+      <canvas id="linearity-canvas" width="440" height="300"></canvas>
+      <div class="linearity-text">
+        <p>
+          <strong style="color:#ef5350">Red line:</strong> Two linear functions stacked.
+          <code style="color:#ef5350">f(g(x)) = 3(2x+1) - 2 = 6x + 1</code><br>
+          No matter how many linear layers you stack, the result is always a straight line.
+        </p>
+        <p style="margin-top:12px;">
+          <strong style="color:#66bb6a">Green line:</strong> A ReLU activation between them.
+          <code style="color:#66bb6a">f(relu(g(x)))</code><br>
+          The activation creates a <strong>bend</strong>. Now we can learn nonlinear patterns.
+          Stack enough of these bends and you can approximate any shape.
+        </p>
+        <p style="margin-top:12px; color:#9e9e9e; font-size:0.9rem;">
+          This is the entire reason activation functions exist. One simple
+          nonlinear kink, repeated across millions of neurons, is what lets
+          neural networks learn to recognize faces, translate languages, and
+          generate text.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Challenges -->
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Drag the input slider slowly from -6 to +6.</strong> Watch how each function transforms the value differently.</li>
+      <li><strong>Look at Sigmoid near x=0 vs x=5.</strong> Near 0 it's sensitive; at extremes it barely changes. This is the "vanishing gradient" problem we'll revisit later.</li>
+      <li><strong>Compare ReLU and Step.</strong> ReLU passes positive values through proportionally; Step just says "on" or "off." Why might proportional be better for learning?</li>
+      <li><strong>Look at the comparison table.</strong> At x=0, what does each function output? At x=-2? These differences shape how a network learns.</li>
+      <li><strong>Think about the linearity graph.</strong> If you stacked 100 layers without activation, you'd still get a straight line. The bend is everything.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// STATE
+// =====================================================
+let currentFn = 'step';
+let currentX = 0.5;
+let curves = {};
+let activationResults = {};
+
+const FN_COLORS = { step: '#ef5350', sigmoid: '#4fc3f7', tanh: '#66bb6a', relu: '#ffb74d' };
+const FN_DESCS = {
+  step: 'Binary on/off. The original 1958 activation. Output is 0 or 1.',
+  sigmoid: 'Smooth S-curve. Squashes any value to (0, 1). Classic for probabilities.',
+  tanh: 'Like sigmoid but centered at zero. Outputs (-1, 1). Often better for hidden layers.',
+  relu: 'max(0, x). Dead simple, fast, works great. The modern default.'
+};
+
+// =====================================================
+// GRAPH CANVAS
+// =====================================================
+const graphCanvas = document.getElementById('graph-canvas');
+const gctx = graphCanvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+graphCanvas.width = 700 * dpr;
+graphCanvas.height = 420 * dpr;
+graphCanvas.style.width = '700px';
+graphCanvas.style.height = '420px';
+gctx.scale(dpr, dpr);
+
+const G = { x: 60, y: 20, w: 620, h: 370 };  // graph area
+const X_MIN = -6, X_MAX = 6, Y_MIN = -1.5, Y_MAX = 2.0;
+
+function gx(val) { return G.x + (val - X_MIN) / (X_MAX - X_MIN) * G.w; }
+function gy(val) { return G.y + G.h - (val - Y_MIN) / (Y_MAX - Y_MIN) * G.h; }
+
+function drawGraph() {
+  gctx.clearRect(0, 0, 700, 420);
+
+  // Grid
+  gctx.strokeStyle = '#1a1a35';
+  gctx.lineWidth = 1;
+  for (let v = Math.ceil(X_MIN); v <= X_MAX; v++) {
+    gctx.beginPath(); gctx.moveTo(gx(v), G.y); gctx.lineTo(gx(v), G.y + G.h); gctx.stroke();
+  }
+  for (let v = Math.ceil(Y_MIN * 2) / 2; v <= Y_MAX; v += 0.5) {
+    gctx.beginPath(); gctx.moveTo(G.x, gy(v)); gctx.lineTo(G.x + G.w, gy(v)); gctx.stroke();
+  }
+
+  // Axes
+  gctx.strokeStyle = '#333355';
+  gctx.lineWidth = 1.5;
+  gctx.beginPath(); gctx.moveTo(gx(X_MIN), gy(0)); gctx.lineTo(gx(X_MAX), gy(0)); gctx.stroke();
+  gctx.beginPath(); gctx.moveTo(gx(0), G.y); gctx.lineTo(gx(0), G.y + G.h); gctx.stroke();
+
+  // Axis labels
+  gctx.font = '11px Consolas, monospace';
+  gctx.fillStyle = '#555570';
+  gctx.textAlign = 'center';
+  for (let v = Math.ceil(X_MIN); v <= X_MAX; v++) {
+    if (v === 0) continue;
+    gctx.fillText(v, gx(v), gy(0) + 16);
+  }
+  gctx.textAlign = 'right';
+  for (let v = Math.ceil(Y_MIN * 2) / 2; v <= Y_MAX; v += 0.5) {
+    if (Math.abs(v) < 0.01) continue;
+    gctx.fillText(v.toFixed(1), G.x - 8, gy(v) + 4);
+  }
+
+  // Draw inactive curves (dimmed)
+  for (const [name, data] of Object.entries(curves)) {
+    if (name === currentFn) continue;
+    gctx.beginPath();
+    gctx.strokeStyle = FN_COLORS[name] + '30';
+    gctx.lineWidth = 1.5;
+    for (let i = 0; i < data.x.length; i++) {
+      const px = gx(data.x[i]), py = gy(data.y[i]);
+      if (py < G.y || py > G.y + G.h) { gctx.moveTo(px, py); continue; }
+      i === 0 ? gctx.moveTo(px, py) : gctx.lineTo(px, py);
+    }
+    gctx.stroke();
+  }
+
+  // Draw active curve
+  if (curves[currentFn]) {
+    const data = curves[currentFn];
+    gctx.beginPath();
+    gctx.strokeStyle = FN_COLORS[currentFn];
+    gctx.lineWidth = 3;
+    gctx.shadowColor = FN_COLORS[currentFn];
+    gctx.shadowBlur = 8;
+    for (let i = 0; i < data.x.length; i++) {
+      const px = gx(data.x[i]), py = Math.max(G.y, Math.min(G.y + G.h, gy(data.y[i])));
+      i === 0 ? gctx.moveTo(px, py) : gctx.lineTo(px, py);
+    }
+    gctx.stroke();
+    gctx.shadowBlur = 0;
+  }
+
+  // Draw current point on active curve
+  if (activationResults[currentFn]) {
+    const r = activationResults[currentFn];
+    const px = gx(r.input);
+    const py = gy(r.output);
+
+    // Crosshair lines
+    gctx.setLineDash([4, 4]);
+    gctx.strokeStyle = '#ffffff30';
+    gctx.lineWidth = 1;
+    gctx.beginPath(); gctx.moveTo(px, G.y + G.h); gctx.lineTo(px, py); gctx.stroke();
+    gctx.beginPath(); gctx.moveTo(G.x, py); gctx.lineTo(px, py); gctx.stroke();
+    gctx.setLineDash([]);
+
+    // Point dot
+    gctx.beginPath();
+    gctx.arc(px, py, 8, 0, Math.PI * 2);
+    gctx.fillStyle = FN_COLORS[currentFn];
+    gctx.shadowColor = FN_COLORS[currentFn];
+    gctx.shadowBlur = 12;
+    gctx.fill();
+    gctx.shadowBlur = 0;
+    gctx.strokeStyle = '#fff';
+    gctx.lineWidth = 2;
+    gctx.stroke();
+
+    // Value label
+    gctx.font = '700 13px Consolas, monospace';
+    gctx.fillStyle = '#fff';
+    gctx.textAlign = 'left';
+    const labelY = py > G.y + 30 ? py - 16 : py + 24;
+    gctx.fillText(`(${r.input.toFixed(2)}, ${r.output.toFixed(3)})`, px + 14, labelY);
+  }
+
+  // Draw dots on all other curves at current x
+  for (const [name, r] of Object.entries(activationResults)) {
+    if (name === currentFn) continue;
+    const px = gx(r.input), py = gy(r.output);
+    gctx.beginPath();
+    gctx.arc(px, py, 4, 0, Math.PI * 2);
+    gctx.fillStyle = FN_COLORS[name] + '80';
+    gctx.fill();
+  }
+
+  // Labels
+  gctx.font = '12px Segoe UI, sans-serif';
+  gctx.fillStyle = '#9e9e9e';
+  gctx.textAlign = 'center';
+  gctx.fillText('Input (weighted sum)', G.x + G.w / 2, G.y + G.h + 36);
+  gctx.save();
+  gctx.translate(16, G.y + G.h / 2);
+  gctx.rotate(-Math.PI / 2);
+  gctx.fillText('Output', 0, 0);
+  gctx.restore();
+}
+
+
+// =====================================================
+// LINEARITY CANVAS
+// =====================================================
+const linCanvas = document.getElementById('linearity-canvas');
+const lctx = linCanvas.getContext('2d');
+linCanvas.width = 440 * dpr;
+linCanvas.height = 300 * dpr;
+linCanvas.style.width = '440px';
+linCanvas.style.height = '300px';
+lctx.scale(dpr, dpr);
+
+function drawLinearity(data) {
+  const L = { x: 50, y: 15, w: 375, h: 260 };
+  const lxMin = -2, lxMax = 2, lyMin = -8, lyMax = 14;
+  function lx(v) { return L.x + (v - lxMin) / (lxMax - lxMin) * L.w; }
+  function ly(v) { return L.y + L.h - (v - lyMin) / (lyMax - lyMin) * L.h; }
+
+  lctx.clearRect(0, 0, 440, 300);
+
+  // Grid
+  lctx.strokeStyle = '#1a1a35';
+  lctx.lineWidth = 1;
+  for (let v = -2; v <= 2; v++) { lctx.beginPath(); lctx.moveTo(lx(v), L.y); lctx.lineTo(lx(v), L.y + L.h); lctx.stroke(); }
+  for (let v = -8; v <= 14; v += 2) { lctx.beginPath(); lctx.moveTo(L.x, ly(v)); lctx.lineTo(L.x + L.w, ly(v)); lctx.stroke(); }
+
+  // Axes
+  lctx.strokeStyle = '#333355'; lctx.lineWidth = 1.5;
+  lctx.beginPath(); lctx.moveTo(lx(-2), ly(0)); lctx.lineTo(lx(2), ly(0)); lctx.stroke();
+  lctx.beginPath(); lctx.moveTo(lx(0), L.y); lctx.lineTo(lx(0), L.y + L.h); lctx.stroke();
+
+  // Linear stacked (red)
+  lctx.beginPath();
+  lctx.strokeStyle = '#ef5350';
+  lctx.lineWidth = 2.5;
+  for (let i = 0; i < data.x.length; i++) {
+    const px = lx(data.x[i]), py = ly(data.linear_stacked[i]);
+    i === 0 ? lctx.moveTo(px, py) : lctx.lineTo(px, py);
+  }
+  lctx.stroke();
+
+  // With activation (green)
+  lctx.beginPath();
+  lctx.strokeStyle = '#66bb6a';
+  lctx.lineWidth = 2.5;
+  for (let i = 0; i < data.x.length; i++) {
+    const px = lx(data.x[i]), py = ly(data.with_activation[i]);
+    i === 0 ? lctx.moveTo(px, py) : lctx.lineTo(px, py);
+  }
+  lctx.stroke();
+
+  // Legend
+  lctx.font = '12px Consolas, monospace';
+  lctx.fillStyle = '#ef5350'; lctx.fillText('linear(linear(x))', L.x + 10, L.y + 20);
+  lctx.fillStyle = '#66bb6a'; lctx.fillText('linear(relu(linear(x)))', L.x + 10, L.y + 38);
+
+  // Axis labels
+  lctx.font = '11px Consolas, monospace';
+  lctx.fillStyle = '#555570';
+  lctx.textAlign = 'center';
+  for (let v = -2; v <= 2; v++) { if (v !== 0) lctx.fillText(v, lx(v), ly(0) + 16); }
+}
+
+
+// =====================================================
+// UI & API
+// =====================================================
+const fnButtons = document.querySelectorAll('.fn-btn');
+const slider = document.getElementById('input-slider');
+const inputValEl = document.getElementById('input-val');
+
+fnButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    fnButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFn = btn.dataset.fn;
+    // Update button border colors
+    updateButtonStyles();
+    document.getElementById('fn-description').textContent = FN_DESCS[currentFn];
+    updateOutputDisplay();
+    drawGraph();
+  });
+});
+
+function updateButtonStyles() {
+  fnButtons.forEach(b => {
+    const fn = b.dataset.fn;
+    if (b.classList.contains('active')) {
+      b.style.borderColor = FN_COLORS[fn];
+      b.style.color = FN_COLORS[fn];
+    } else {
+      b.style.borderColor = '#2a2a4a';
+      b.style.color = '#9e9e9e';
+    }
+  });
+}
+
+slider.addEventListener('input', () => {
+  currentX = parseFloat(slider.value);
+  inputValEl.textContent = currentX >= 0 ? '+' + currentX.toFixed(2) : currentX.toFixed(2);
+  computeActivation();
+});
+
+function updateOutputDisplay() {
+  const r = activationResults[currentFn];
+  if (!r) return;
+  const outInput = document.getElementById('out-input');
+  const outValue = document.getElementById('out-value');
+  const outName = document.getElementById('out-fn-name');
+  outInput.textContent = r.input >= 0 ? '+' + r.input.toFixed(2) : r.input.toFixed(2);
+  outValue.textContent = r.output >= 0 ? '+' + r.output.toFixed(3) : r.output.toFixed(3);
+  outValue.style.color = FN_COLORS[currentFn];
+  outName.textContent = r.label;
+  outName.style.color = FN_COLORS[currentFn];
+
+  // Comparison table
+  const tbody = document.getElementById('compare-body');
+  document.getElementById('compare-x').textContent = r.input.toFixed(2);
+  let html = '';
+  for (const [name, ar] of Object.entries(activationResults)) {
+    const bold = name === currentFn ? 'font-weight:700;' : '';
+    html += `<tr style="${bold}">
+      <td><span class="fn-dot" style="background:${FN_COLORS[name]}"></span>${ar.label}</td>
+      <td style="color:${FN_COLORS[name]}">${ar.output >= 0 ? '+' : ''}${ar.output.toFixed(4)}</td>
+    </tr>`;
+  }
+  tbody.innerHTML = html;
+}
+
+async function computeActivation() {
+  try {
+    const resp = await fetch('api/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ x: currentX }),
+    });
+    activationResults = await resp.json();
+    updateOutputDisplay();
+    drawGraph();
+  } catch (e) { console.error(e); }
+}
+
+async function loadCurves() {
+  try {
+    const resp = await fetch('api/curves');
+    curves = await resp.json();
+    drawGraph();
+  } catch (e) { console.error(e); }
+}
+
+async function loadLinearity() {
+  try {
+    const resp = await fetch('api/linearity');
+    const data = await resp.json();
+    drawLinearity(data);
+  } catch (e) { console.error(e); }
+}
+
+// Initialize
+updateButtonStyles();
+document.getElementById('fn-description').textContent = FN_DESCS[currentFn];
+loadCurves();
+loadLinearity();
+computeActivation();
+</script>
+</body>
+</html>

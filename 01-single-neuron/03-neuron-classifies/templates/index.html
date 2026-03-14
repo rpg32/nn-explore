@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01.3 — A Neuron Classifies</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 24px; font-family: Consolas, monospace; color: #4fc3f7; font-size: 1.0rem; text-align: center; margin: 14px 0; }
+
+  .demo { display: flex; gap: 24px; margin-bottom: 24px; }
+  .canvas-panel { flex: 1; }
+  .canvas-panel canvas { display: block; border-radius: 8px; cursor: crosshair; }
+  .side-panel { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+
+  .control-group { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px 20px; }
+  .control-group h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 12px; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .slider-row:last-child { margin-bottom: 0; }
+  .slider-label { font-family: Consolas, monospace; font-size: 0.95rem; width: 28px; text-align: right; flex-shrink: 0; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; }
+  .w-slider::-webkit-slider-thumb { background: #ffb74d; }
+  .b-slider::-webkit-slider-thumb { background: #ce93d8; }
+  .slider-value { font-family: Consolas, monospace; font-size: 0.9rem; width: 52px; text-align: right; flex-shrink: 0; }
+
+  .dataset-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ds-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+  .ds-btn:hover { border-color: #4fc3f7; color: #e0e0e0; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; background: rgba(79,195,247,0.1); }
+
+  .mode-btns { display: flex; gap: 6px; margin-bottom: 10px; }
+  .mode-btn { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.82rem; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .mode-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .mode-btn:hover { border-color: #555; }
+
+  .accuracy-box { background: #0d0d20; border-radius: 8px; padding: 14px; text-align: center; }
+  .accuracy-box .label { font-size: 0.85rem; color: #9e9e9e; }
+  .accuracy-box .value { font-size: 2rem; font-weight: 700; font-family: Consolas, monospace; }
+  .accuracy-box .detail { font-size: 0.8rem; color: #666; margin-top: 2px; }
+  .eq-box { background: #0d0d20; border-radius: 8px; padding: 10px 14px; font-family: Consolas, monospace; font-size: 0.88rem; color: #ce93d8; text-align: center; }
+
+  .clear-btn { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #1a1a2e; color: #999; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; }
+  .clear-btn:hover { border-color: #ef5350; color: #ef5350; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; font-size: 1.0rem; }
+  .challenges ul { list-style: none; padding: 0; }
+  .challenges li { padding: 8px 0; padding-left: 28px; position: relative; color: #c0c0d0; font-size: 0.95rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+
+  @media (max-width: 800px) { .demo { flex-direction: column; } .side-panel { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 01 &middot; The Single Neuron</div>
+  <h1>A Neuron Classifies</h1>
+  <p class="subtitle">Using a single neuron to draw a decision boundary</p>
+
+  <div class="card">
+    <p>
+      A single neuron can <strong>classify</strong> &mdash; look at a 2D point and decide which of two groups it belongs to.
+      It computes the weighted sum, passes it through sigmoid, and says:
+      <strong style="color:#4fc3f7">blue</strong> (Class A, &ge; 0.5) or
+      <strong style="color:#ffb74d">orange</strong> (Class B, &lt; 0.5).
+    </p>
+    <div class="formula-box">
+      class = sigmoid( <span style="color:#ffb74d">w&#8321;</span> &middot; x&#8321; +
+      <span style="color:#ffb74d">w&#8322;</span> &middot; x&#8322; +
+      <span style="color:#ce93d8">bias</span> ) &nbsp;&nbsp; &ge; 0.5 ?
+      <span style="color:#4fc3f7">A</span> :
+      <span style="color:#ffb74d">B</span>
+    </div>
+    <p>
+      The <strong>decision boundary</strong> is the straight line where the neuron is exactly 50/50.
+      Adjust the weights to rotate the line, and the bias to shift it. <strong>Click the canvas to add your own points</strong>,
+      or load a sample dataset.
+    </p>
+  </div>
+
+  <div class="demo">
+    <div class="canvas-panel">
+      <div class="card" style="padding: 12px;">
+        <canvas id="main-canvas" width="580" height="580"></canvas>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="control-group">
+        <h3>Weights &amp; Bias</h3>
+        <div class="slider-row">
+          <span class="slider-label" style="color:#ffb74d">w&#8321;</span>
+          <input type="range" class="w-slider" id="w1" min="-3" max="3" step="0.05" value="1.00">
+          <span class="slider-value" id="w1-val" style="color:#ffb74d">1.00</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label" style="color:#ffb74d">w&#8322;</span>
+          <input type="range" class="w-slider" id="w2" min="-3" max="3" step="0.05" value="1.00">
+          <span class="slider-value" id="w2-val" style="color:#ffb74d">1.00</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label" style="color:#ce93d8">b</span>
+          <input type="range" class="b-slider" id="bias" min="-5" max="5" step="0.05" value="0.00">
+          <span class="slider-value" id="bias-val" style="color:#ce93d8">0.00</span>
+        </div>
+        <div id="eq-display" class="eq-box" style="margin-top: 10px;"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>Sample Datasets</h3>
+        <div class="dataset-btns">
+          <button class="ds-btn" data-ds="simple">Simple</button>
+          <button class="ds-btn" data-ds="diagonal">Diagonal</button>
+          <button class="ds-btn" data-ds="close">Overlapping</button>
+          <button class="ds-btn" data-ds="circle">Circle</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Click to Add Points</h3>
+        <div class="mode-btns">
+          <button class="mode-btn active" data-mode="A">
+            <span style="color:#4fc3f7">&bull;</span> Class A
+          </button>
+          <button class="mode-btn" data-mode="B">
+            <span style="color:#ffb74d">&bull;</span> Class B
+          </button>
+        </div>
+        <button class="clear-btn" id="clear-btn">Clear All Points</button>
+      </div>
+
+      <div class="control-group">
+        <div class="accuracy-box">
+          <div class="label">Accuracy</div>
+          <div class="value" id="accuracy-val">--</div>
+          <div class="detail" id="accuracy-detail"></div>
+        </div>
+      </div>
+
+      <div class="python-badge">Computed by Python &mdash; see <code>nn_code.py</code></div>
+    </div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Load "Simple" and adjust w1, w2, bias</strong> to get 100% accuracy. The line separating blue from orange is the decision boundary.</li>
+      <li><strong>Load "Diagonal"</strong> — you need a different slope. Which weight controls rotation?</li>
+      <li><strong>Load "Overlapping"</strong> — the clusters overlap. Can you get above 80%? Some errors are unavoidable.</li>
+      <li><strong>Load "Circle"</strong> — blue dots surround orange dots. <strong>No straight line can separate them!</strong> This is the fundamental limit of a single neuron. (Module 04 fixes this with more layers.)</li>
+      <li><strong>Click to add your own points.</strong> Draw a pattern and see if you can separate it.</li>
+      <li><strong>Set w1=0.</strong> The boundary becomes horizontal — only x2 matters. Set w2=0 and it goes vertical.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// STATE
+// =====================================================
+let points = [];
+let addMode = 'A';
+let gridData = null;
+let boundaryData = null;
+
+const RANGE = 5;  // coordinate space: -5 to 5
+const COL_A = '#4fc3f7';
+const COL_B = '#ffb74d';
+
+// =====================================================
+// CANVAS SETUP
+// =====================================================
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+const SIZE = 580;
+canvas.width = SIZE * dpr;
+canvas.height = SIZE * dpr;
+canvas.style.width = SIZE + 'px';
+canvas.style.height = SIZE + 'px';
+ctx.scale(dpr, dpr);
+
+function toCanvas(val) { return (val + RANGE) / (2 * RANGE) * SIZE; }
+function fromCanvas(px) { return px / SIZE * (2 * RANGE) - RANGE; }
+
+// =====================================================
+// DRAWING
+// =====================================================
+function draw() {
+  ctx.clearRect(0, 0, SIZE, SIZE);
+
+  // Heatmap background
+  if (gridData) {
+    const res = gridData.probabilities.length;
+    const cellW = SIZE / res;
+    const cellH = SIZE / res;
+    for (let row = 0; row < res; row++) {
+      for (let col = 0; col < res; col++) {
+        const prob = gridData.probabilities[res - 1 - row][col];  // flip y
+        // Interpolate between orange (B) and blue (A)
+        const r = Math.round(lerp(255, 30, prob));
+        const g = Math.round(lerp(150, 140, prob));
+        const b = Math.round(lerp(60, 220, prob));
+        ctx.fillStyle = `rgba(${r},${g},${b},0.25)`;
+        ctx.fillRect(col * cellW, row * cellH, cellW + 0.5, cellH + 0.5);
+      }
+    }
+  }
+
+  // Grid lines
+  ctx.strokeStyle = '#ffffff08';
+  ctx.lineWidth = 1;
+  for (let v = -RANGE; v <= RANGE; v++) {
+    const p = toCanvas(v);
+    ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, SIZE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(SIZE, p); ctx.stroke();
+  }
+
+  // Axes
+  const cx = toCanvas(0), cy = toCanvas(0);
+  ctx.strokeStyle = '#ffffff20';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, SIZE); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(SIZE, cy); ctx.stroke();
+
+  // Axis labels
+  ctx.font = '11px Consolas, monospace';
+  ctx.fillStyle = '#444';
+  ctx.textAlign = 'center';
+  for (let v = -4; v <= 4; v++) {
+    if (v === 0) continue;
+    ctx.fillText(v, toCanvas(v), cy + 14);
+    ctx.fillText(v, cx - 12, toCanvas(-v) + 4);
+  }
+  ctx.fillStyle = '#555';
+  ctx.fillText('x1', SIZE - 16, cy - 8);
+  ctx.save(); ctx.translate(cx + 12, 16); ctx.fillText('x2', 0, 0); ctx.restore();
+
+  // Decision boundary
+  if (boundaryData && boundaryData.type === 'line') {
+    const x1s = toCanvas(boundaryData.x1[0]);
+    const x2s = toCanvas(-boundaryData.x2[0]);
+    const x1e = toCanvas(boundaryData.x1[1]);
+    const x2e = toCanvas(-boundaryData.x2[1]);
+    ctx.beginPath();
+    ctx.moveTo(x1s, x2s);
+    ctx.lineTo(x1e, x2e);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Label
+    const mx = (x1s + x1e) / 2, my = (x2s + x2e) / 2;
+    ctx.font = '700 11px Consolas, monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText('BOUNDARY', mx, my - 10);
+  } else if (boundaryData && boundaryData.type === 'vertical') {
+    const px = toCanvas(boundaryData.x1_val);
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, SIZE);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+
+  // Data points
+  for (const p of points) {
+    const px = toCanvas(p.x1);
+    const py = toCanvas(-p.x2);  // flip y so up is positive
+    const col = p.label === 'A' ? COL_A : COL_B;
+
+    ctx.beginPath();
+    ctx.arc(px, py, 7, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Class labels
+  if (boundaryData && boundaryData.type !== 'none') {
+    ctx.font = '700 16px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    const w1 = parseFloat(document.getElementById('w1').value);
+    const w2 = parseFloat(document.getElementById('w2').value);
+    const bias = parseFloat(document.getElementById('bias').value);
+    // Test a point to see which side is A
+    const testZ = w1 * 3 + w2 * 3 + bias;
+    if (testZ >= 0) {
+      ctx.fillStyle = COL_A + '80'; ctx.fillText('Class A', SIZE - 50, 30);
+      ctx.fillStyle = COL_B + '80'; ctx.fillText('Class B', 50, SIZE - 16);
+    } else {
+      ctx.fillStyle = COL_B + '80'; ctx.fillText('Class B', SIZE - 50, 30);
+      ctx.fillStyle = COL_A + '80'; ctx.fillText('Class A', 50, SIZE - 16);
+    }
+  }
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// =====================================================
+// CLICK TO ADD POINTS
+// =====================================================
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const x1 = parseFloat(fromCanvas(px).toFixed(2));
+  const x2 = parseFloat((-fromCanvas(py)).toFixed(2));  // flip y
+
+  points.push({ x1, x2, label: addMode });
+  update();
+});
+
+// Mode buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    addMode = btn.dataset.mode;
+  });
+});
+
+// Clear button
+document.getElementById('clear-btn').addEventListener('click', () => {
+  points = [];
+  document.querySelectorAll('.ds-btn').forEach(b => b.classList.remove('active'));
+  update();
+});
+
+// Dataset buttons
+document.querySelectorAll('.ds-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.querySelectorAll('.ds-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    try {
+      const resp = await fetch(`api/dataset/${btn.dataset.ds}`);
+      const data = await resp.json();
+      points = data.points;
+      update();
+    } catch (e) { console.error(e); }
+  });
+});
+
+// =====================================================
+// SLIDERS & API
+// =====================================================
+const sliderIds = ['w1', 'w2', 'bias'];
+
+function getParams() {
+  return {
+    w1: parseFloat(document.getElementById('w1').value),
+    w2: parseFloat(document.getElementById('w2').value),
+    bias: parseFloat(document.getElementById('bias').value),
+  };
+}
+
+function updateSliderDisplay() {
+  for (const id of sliderIds) {
+    const val = parseFloat(document.getElementById(id).value);
+    const el = document.getElementById(id + '-val');
+    el.textContent = (val >= 0 ? '+' : '') + val.toFixed(2);
+  }
+}
+
+async function update() {
+  updateSliderDisplay();
+  const params = getParams();
+  params.points = points;
+
+  try {
+    const resp = await fetch('api/classify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const result = await resp.json();
+    gridData = result.grid;
+    boundaryData = result.boundary;
+
+    // Update equation display
+    const eqEl = document.getElementById('eq-display');
+    if (boundaryData.equation) {
+      eqEl.textContent = boundaryData.equation;
+    }
+
+    // Update accuracy
+    const accEl = document.getElementById('accuracy-val');
+    const detEl = document.getElementById('accuracy-detail');
+    if (result.accuracy && result.accuracy.total > 0) {
+      const pct = Math.round(result.accuracy.accuracy * 100);
+      accEl.textContent = pct + '%';
+      accEl.style.color = pct >= 90 ? '#66bb6a' : pct >= 70 ? '#ffb74d' : '#ef5350';
+      detEl.textContent = `${result.accuracy.correct} / ${result.accuracy.total} correct`;
+    } else {
+      accEl.textContent = '--';
+      accEl.style.color = '#555';
+      detEl.textContent = 'Add points or load a dataset';
+    }
+
+    draw();
+  } catch (e) { console.error(e); }
+}
+
+for (const id of sliderIds) {
+  document.getElementById(id).addEventListener('input', update);
+}
+
+// Initial load
+update();
+</script>
+</body>
+</html>

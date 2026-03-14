@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02.4 — A Neuron Learns</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+
+  .steps-box { background: #0d0d20; border-radius: 8px; padding: 16px 20px; margin: 14px 0; font-family: Consolas, monospace; font-size: 0.92rem; line-height: 1.8; }
+  .steps-box .s-num { color: #ffb74d; font-weight: 700; }
+  .steps-box .s-label { color: #9e9e9e; }
+  .steps-box .s-val { color: #66bb6a; }
+
+  .demo { display: flex; gap: 24px; margin-bottom: 24px; }
+  .canvas-panel { flex: 1; }
+  .canvas-panel canvas { display: block; border-radius: 8px; }
+  .side-panel { width: 290px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px 20px; }
+  .ctrl h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 10px; }
+
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ds-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+  .ds-btn:hover { border-color: #555; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .slider-label { font-family: Consolas, monospace; font-size: 0.85rem; width: 22px; color: #ffb74d; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #ffb74d; cursor: pointer; }
+  .slider-value { font-family: Consolas, monospace; font-size: 0.85rem; width: 45px; text-align: right; color: #ffb74d; }
+
+  .action-btns { display: flex; gap: 8px; }
+  .act-btn { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: center; background: #0d0d20; transition: all 0.15s; }
+  .btn-step { border-color: #4fc3f7; color: #4fc3f7; }
+  .btn-step:hover { background: rgba(79,195,247,0.12); }
+  .btn-run { border-color: #66bb6a; color: #66bb6a; }
+  .btn-run:hover { background: rgba(102,187,106,0.12); }
+  .btn-reset { border-color: #ef5350; color: #ef5350; }
+  .btn-reset:hover { background: rgba(239,83,80,0.12); }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .info-box { background: #0d0d20; border-radius: 6px; padding: 8px; text-align: center; }
+  .info-box .lbl { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .info-box .val { font-family: Consolas, monospace; font-size: 0.95rem; font-weight: 700; color: #fff; }
+
+  .chart-wrap { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+  .chart-wrap h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+  .chart-row { display: flex; gap: 16px; }
+  .chart-row canvas { display: block; border-radius: 6px; flex: 1; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 8px 0 8px 28px; position: relative; color: #c0c0d0; font-size: 0.95rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+
+  @media (max-width: 800px) { .demo, .chart-row { flex-direction: column; } .side-panel { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 02 &middot; How Learning Works</div>
+  <h1>A Neuron Learns</h1>
+  <p class="subtitle">Everything comes together — watch a neuron train itself</p>
+
+  <div class="card">
+    <p>This is the payoff. We combine every concept from Modules 01 and 02 into <strong>the training loop</strong> &mdash;
+      the heart of all machine learning:</p>
+    <div class="steps-box">
+      <span class="s-num">1.</span> <span class="s-label">FORWARD PASS</span> &mdash; <span class="s-val">feed data through, get predictions</span><br>
+      <span class="s-num">2.</span> <span class="s-label">COMPUTE LOSS</span> &mdash; <span class="s-val">how wrong are the predictions? (BCE)</span><br>
+      <span class="s-num">3.</span> <span class="s-label">COMPUTE GRADIENTS</span> &mdash; <span class="s-val">which way should each weight move?</span><br>
+      <span class="s-num">4.</span> <span class="s-label">UPDATE WEIGHTS</span> &mdash; <span class="s-val">nudge weights downhill</span><br>
+      <span class="s-num">5.</span> <span class="s-label">REPEAT</span> &mdash; <span class="s-val">until the loss is small and accuracy is high</span>
+    </div>
+    <p>Load a dataset, then step through one training iteration at a time. Watch the decision boundary move as the neuron learns.</p>
+  </div>
+
+  <div class="demo">
+    <div class="canvas-panel">
+      <div class="card" style="padding: 12px;">
+        <canvas id="main-canvas" width="580" height="580"></canvas>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="ctrl">
+        <h3>Dataset</h3>
+        <div class="ds-btns">
+          <button class="ds-btn" data-ds="simple">Simple</button>
+          <button class="ds-btn" data-ds="horizontal">Horizontal</button>
+          <button class="ds-btn" data-ds="diagonal">Diagonal</button>
+          <button class="ds-btn" data-ds="messy">Messy</button>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <h3>Learning Rate</h3>
+        <div class="slider-row">
+          <span class="slider-label">lr</span>
+          <input type="range" id="lr" min="-1" max="1" step="0.05" value="0">
+          <span class="slider-value" id="lr-val">1.000</span>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <h3>Train</h3>
+        <div class="action-btns">
+          <button class="act-btn btn-step" id="btn-step">Step x1</button>
+          <button class="act-btn btn-run" id="btn-run">Run x50</button>
+          <button class="act-btn btn-reset" id="btn-reset">Reset</button>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <h3>Neuron State</h3>
+        <div class="info-grid">
+          <div class="info-box"><div class="lbl">Step</div><div class="val" id="i-step">0</div></div>
+          <div class="info-box"><div class="lbl">Loss</div><div class="val" id="i-loss" style="color:#ef5350">--</div></div>
+          <div class="info-box"><div class="lbl">Accuracy</div><div class="val" id="i-acc" style="color:#66bb6a">--</div></div>
+          <div class="info-box"><div class="lbl">w1</div><div class="val" id="i-w1">0.00</div></div>
+          <div class="info-box"><div class="lbl">w2</div><div class="val" id="i-w2">0.00</div></div>
+          <div class="info-box"><div class="lbl">bias</div><div class="val" id="i-b">0.00</div></div>
+        </div>
+      </div>
+
+      <div class="python-badge">Computed by Python &mdash; see <code>nn_code.py</code></div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <h3>Training Progress</h3>
+    <div class="chart-row">
+      <canvas id="loss-chart" width="510" height="200"></canvas>
+      <canvas id="acc-chart" width="510" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Load "Simple", click Step x1 repeatedly.</strong> Watch the decision boundary swing into place one step at a time. This is learning happening before your eyes.</li>
+      <li><strong>Run x50</strong> and see the loss plummet and accuracy jump to 100%. The neuron found the right weights on its own!</li>
+      <li><strong>Load "Diagonal".</strong> The boundary needs to rotate. Watch how w1 and w2 change sign as it swings.</li>
+      <li><strong>Load "Messy".</strong> The clusters overlap. The neuron will find the BEST line, but accuracy will be less than 100%. Some data just can't be perfectly separated by a line.</li>
+      <li><strong>Reset and try lr = 0.1 vs lr = 10.</strong> How does the learning speed change? Does high lr cause oscillation?</li>
+      <li><strong>Watch the weights in the info panel</strong> as you step. The gradients are pushing them toward the right values. This is the algorithm deciding on its own where to draw the line.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// STATE
+// =====================================================
+let points = [];
+let heatmap = null;
+let boundary = null;
+let history = [];
+const RANGE = 4;
+const COL_A = '#4fc3f7', COL_B = '#ffb74d';
+
+function getLR() { return Math.pow(10, parseFloat(document.getElementById('lr').value)); }
+
+// Canvas setup
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+const mainC = setupC('main-canvas', 580, 580);
+const lossC = setupC('loss-chart', 510, 200);
+const accC = setupC('acc-chart', 510, 200);
+
+function toP(v) { return (v + RANGE) / (2 * RANGE) * mainC.w; }
+
+// =====================================================
+// MAIN CANVAS
+// =====================================================
+function drawMain() {
+  const { ctx, w: W, h: H } = mainC;
+  ctx.clearRect(0, 0, W, H);
+
+  // Heatmap
+  if (heatmap) {
+    const res = heatmap.probs.length;
+    const cw = W / res, ch = H / res;
+    for (let r = 0; r < res; r++) {
+      for (let c = 0; c < res; c++) {
+        const p = heatmap.probs[res-1-r][c];
+        const red = Math.round(255*(1-p)*0.3 + 30);
+        const grn = Math.round(140);
+        const blu = Math.round(255*p*0.3 + 60);
+        ctx.fillStyle = `rgba(${red},${grn},${blu},0.3)`;
+        ctx.fillRect(c*cw, r*ch, cw+.5, ch+.5);
+      }
+    }
+  }
+
+  // Grid
+  ctx.strokeStyle = '#ffffff08'; ctx.lineWidth = 1;
+  for (let v = -RANGE; v <= RANGE; v++) {
+    const p = toP(v);
+    ctx.beginPath(); ctx.moveTo(p,0); ctx.lineTo(p,W); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,p); ctx.lineTo(W,p); ctx.stroke();
+  }
+  const cx = toP(0);
+  ctx.strokeStyle = '#ffffff18'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,cx); ctx.lineTo(W,cx); ctx.stroke();
+
+  // Decision boundary
+  if (boundary && boundary.type === 'line') {
+    ctx.beginPath();
+    ctx.moveTo(toP(boundary.x1[0]), toP(-boundary.x2[0]));
+    ctx.lineTo(toP(boundary.x1[1]), toP(-boundary.x2[1]));
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#fff'; ctx.shadowBlur = 8; ctx.stroke(); ctx.shadowBlur = 0;
+  }
+
+  // Points
+  for (const p of points) {
+    const px = toP(p.x1), py = toP(-p.x2);
+    const col = p.label === 'A' ? COL_A : COL_B;
+    ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2);
+    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 4; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  // Step counter
+  ctx.font = '600 14px Consolas, monospace'; ctx.fillStyle = '#ffffff50'; ctx.textAlign = 'left';
+  ctx.fillText(`Step ${history.length}`, 10, 22);
+}
+
+// =====================================================
+// CHARTS
+// =====================================================
+function drawChart(C, data, label, color, isPercent) {
+  const { ctx, w: W, h: H } = C;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 50, r: 10, t: 14, b: 26 };
+  const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
+
+  if (data.length < 2) {
+    ctx.font = '13px sans-serif'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+    ctx.fillText(`${label} chart appears after training`, W/2, H/2);
+    return;
+  }
+
+  const maxY = isPercent ? 1.05 : Math.max(...data) * 1.2 || 1;
+  const maxX = data.length - 1;
+  function gx(i) { return pad.l + (i/maxX)*gw; }
+  function gy(v) { return pad.t + gh - (v/maxY)*gh; }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  const yStep = isPercent ? 0.25 : maxY > 2 ? 0.5 : 0.1;
+  for (let v = 0; v <= maxY; v += yStep) {
+    ctx.beginPath(); ctx.moveTo(pad.l, gy(v)); ctx.lineTo(pad.l+gw, gy(v)); ctx.stroke();
+  }
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t+gh); ctx.lineTo(pad.l+gw, pad.t+gh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+gh); ctx.stroke();
+
+  // Curve
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  for (let i = 0; i < data.length; i++) {
+    const x = gx(i), y = gy(data[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Labels
+  ctx.font = '700 12px Consolas'; ctx.fillStyle = color; ctx.textAlign = 'left';
+  ctx.fillText(label, pad.l + 6, pad.t + 10);
+  const last = data[data.length-1];
+  ctx.textAlign = 'right';
+  ctx.fillText(isPercent ? (last*100).toFixed(0)+'%' : last.toFixed(4), pad.l+gw-4, pad.t+10);
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+  ctx.fillText('Step', pad.l+gw/2, H-4);
+}
+
+function drawCharts() {
+  const losses = history.map(h => h.loss_after);
+  const accs = history.map(h => h.accuracy);
+  drawChart(lossC, losses, 'Loss', '#ef5350', false);
+  drawChart(accC, accs, 'Accuracy', '#66bb6a', true);
+}
+
+// =====================================================
+// INFO PANEL
+// =====================================================
+function updateInfo(data) {
+  if (data.state) {
+    document.getElementById('i-step').textContent = data.state.step;
+    document.getElementById('i-w1').textContent = data.state.w1.toFixed(3);
+    document.getElementById('i-w2').textContent = data.state.w2.toFixed(3);
+    document.getElementById('i-b').textContent = data.state.bias.toFixed(3);
+  }
+  if (data.loss_after !== undefined) {
+    document.getElementById('i-loss').textContent = data.loss_after.toFixed(4);
+  }
+  if (data.accuracy !== undefined) {
+    const pct = Math.round(data.accuracy * 100);
+    const el = document.getElementById('i-acc');
+    el.textContent = pct + '%';
+    el.style.color = pct >= 90 ? '#66bb6a' : pct >= 70 ? '#ffb74d' : '#ef5350';
+  }
+}
+
+// =====================================================
+// API
+// =====================================================
+async function loadDataset(name) {
+  const resp = await fetch(`api/dataset/${name}`);
+  const data = await resp.json();
+  points = data.points;
+  history = [];
+  boundary = null;
+  heatmap = null;
+  updateInfo({ state: data.state });
+  document.getElementById('i-loss').textContent = '--';
+  document.getElementById('i-acc').textContent = '--';
+  drawMain();
+  drawCharts();
+}
+
+async function doStep() {
+  const resp = await fetch('api/step', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ lr: getLR() }),
+  });
+  const data = await resp.json();
+  history.push(data);
+  boundary = data.boundary;
+  heatmap = data.heatmap;
+  updateInfo(data);
+  drawMain();
+  drawCharts();
+}
+
+async function doRun() {
+  const resp = await fetch('api/run', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ lr: getLR(), steps: 50 }),
+  });
+  const data = await resp.json();
+  boundary = data.boundary;
+  heatmap = data.heatmap;
+
+  // Animate through the steps
+  let i = 0;
+  function animate() {
+    if (i >= data.steps.length) return;
+    history.push(data.steps[i]);
+    updateInfo(data.steps[i]);
+    // Use final heatmap/boundary for last frame only
+    if (i === data.steps.length - 1) { boundary = data.boundary; heatmap = data.heatmap; }
+    drawMain();
+    drawCharts();
+    i++;
+    setTimeout(animate, 30);
+  }
+  animate();
+}
+
+async function doReset() {
+  const resp = await fetch('api/reset', { method: 'POST' });
+  const data = await resp.json();
+  history = [];
+  boundary = data.boundary;
+  heatmap = data.heatmap;
+  updateInfo({ state: data.state });
+  document.getElementById('i-loss').textContent = '--';
+  document.getElementById('i-acc').textContent = '--';
+  drawMain();
+  drawCharts();
+}
+
+// =====================================================
+// EVENTS
+// =====================================================
+document.querySelectorAll('.ds-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ds-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadDataset(btn.dataset.ds);
+  });
+});
+
+document.getElementById('lr').addEventListener('input', () => {
+  document.getElementById('lr-val').textContent = getLR().toFixed(3);
+});
+
+document.getElementById('btn-step').addEventListener('click', doStep);
+document.getElementById('btn-run').addEventListener('click', doRun);
+document.getElementById('btn-reset').addEventListener('click', doReset);
+
+// Init
+drawMain();
+drawCharts();
+</script>
+</body>
+</html>

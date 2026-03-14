@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02.2 — Gradient Descent</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 24px; font-family: Consolas, monospace; color: #66bb6a; font-size: 1.05rem; text-align: center; margin: 14px 0; }
+
+  .demo { display: flex; gap: 24px; margin-bottom: 24px; }
+  .canvas-panel { flex: 1; }
+  .canvas-panel canvas { display: block; border-radius: 8px; cursor: crosshair; }
+  .side-panel { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px 20px; }
+  .ctrl h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 10px; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .slider-label { font-family: Consolas, monospace; font-size: 0.88rem; width: 28px; color: #9e9e9e; text-align: right; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #ffb74d; cursor: pointer; }
+  .slider-value { font-family: Consolas, monospace; font-size: 0.88rem; width: 52px; text-align: right; color: #fff; }
+
+  .ls-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ls-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .ls-btn:hover { border-color: #555; }
+  .ls-btn.active { border-color: #66bb6a; color: #66bb6a; background: rgba(102,187,106,0.1); }
+
+  .action-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .act-btn { flex: 1; min-width: 80px; padding: 10px; border-radius: 8px; border: 2px solid; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; background: #0d0d20; }
+  .btn-step { border-color: #4fc3f7; color: #4fc3f7; }
+  .btn-step:hover { background: rgba(79,195,247,0.15); }
+  .btn-run { border-color: #66bb6a; color: #66bb6a; }
+  .btn-run:hover { background: rgba(102,187,106,0.15); }
+  .btn-reset { border-color: #ef5350; color: #ef5350; }
+  .btn-reset:hover { background: rgba(239,83,80,0.15); }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .info-box { background: #0d0d20; border-radius: 6px; padding: 10px; text-align: center; }
+  .info-box .lbl { font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .info-box .val { font-family: Consolas, monospace; font-size: 1.05rem; font-weight: 700; color: #fff; }
+
+  /* Loss chart */
+  .loss-chart-wrap { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+  .loss-chart-wrap h3 { font-size: 0.95rem; color: #fff; margin-bottom: 10px; }
+  .loss-chart-wrap canvas { display: block; border-radius: 6px; width: 100%; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 8px 0 8px 28px; position: relative; color: #c0c0d0; font-size: 0.95rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+
+  @media (max-width: 800px) { .demo { flex-direction: column; } .side-panel { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 02 &middot; How Learning Works</div>
+  <h1>Gradient Descent</h1>
+  <p class="subtitle">The algorithm that makes neural networks learn — rolling downhill on the loss landscape</p>
+
+  <div class="card">
+    <p>
+      The <strong>loss landscape</strong> maps every possible weight setting to its loss value — think of it as terrain.
+      <strong>Gradient descent</strong> finds the lowest point (best weights) by repeatedly stepping downhill.
+    </p>
+    <div class="formula-box">
+      w<sub>new</sub> = w<sub>old</sub> - <span style="color:#ffb74d">learning_rate</span> &times; <span style="color:#ef5350">gradient</span>
+    </div>
+    <p>
+      The <span style="color:#ef5350">gradient</span> points uphill (steepest increase).
+      We go the <em>opposite</em> direction. The <span style="color:#ffb74d">learning rate</span> controls how big each step is.
+      <strong>Click the landscape</strong> to set a starting point, then step or run to watch the descent.
+    </p>
+  </div>
+
+  <div class="demo">
+    <div class="canvas-panel">
+      <div class="card" style="padding: 12px;">
+        <canvas id="landscape-canvas" width="600" height="600"></canvas>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="ctrl">
+        <h3>Landscape</h3>
+        <div class="ls-btns" id="ls-btns"></div>
+        <p id="ls-desc" style="font-size:0.82rem; color:#777; margin-top:8px;"></p>
+      </div>
+
+      <div class="ctrl">
+        <h3>Learning Rate</h3>
+        <div class="slider-row">
+          <span class="slider-label" style="color:#ffb74d">lr</span>
+          <input type="range" id="lr-slider" min="-3" max="0" step="0.05" value="-1">
+          <span class="slider-value" id="lr-val" style="color:#ffb74d">0.100</span>
+        </div>
+        <div style="display:flex; justify-content: space-between; font-size:0.72rem; color:#555; padding: 0 38px 0 38px;">
+          <span>0.001</span><span>0.01</span><span>0.1</span><span>1.0</span>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="action-btns">
+          <button class="act-btn btn-step" id="btn-step">Step</button>
+          <button class="act-btn btn-run" id="btn-run">Run 50</button>
+          <button class="act-btn btn-reset" id="btn-reset">Reset</button>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <h3>Current State</h3>
+        <div class="info-grid">
+          <div class="info-box"><div class="lbl">Step</div><div class="val" id="info-step">0</div></div>
+          <div class="info-box"><div class="lbl">Loss</div><div class="val" id="info-loss" style="color:#ef5350">--</div></div>
+          <div class="info-box"><div class="lbl">w1</div><div class="val" id="info-w1">--</div></div>
+          <div class="info-box"><div class="lbl">w2</div><div class="val" id="info-w2">--</div></div>
+          <div class="info-box"><div class="lbl">|grad|</div><div class="val" id="info-grad">--</div></div>
+          <div class="info-box"><div class="lbl">Minimum</div><div class="val" id="info-min" style="color:#66bb6a">--</div></div>
+        </div>
+      </div>
+
+      <div class="python-badge">Computed by Python &mdash; see <code>nn_code.py</code></div>
+    </div>
+  </div>
+
+  <!-- Loss over time chart -->
+  <div class="loss-chart-wrap">
+    <h3>Loss Over Steps</h3>
+    <canvas id="loss-canvas" width="1040" height="200"></canvas>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Click different starting points</strong> on the landscape. Does descent always reach the same minimum?</li>
+      <li><strong>Simple Bowl + lr=0.1:</strong> Clean, smooth descent. Step through one at a time to see each gradient arrow.</li>
+      <li><strong>Elongated Valley + lr=0.1:</strong> Watch it zigzag! The gradient points sideways across the narrow valley instead of along it. This is a classic problem.</li>
+      <li><strong>Crank lr to 1.0</strong> on any landscape. Watch it overshoot and bounce wildly — it may never converge!</li>
+      <li><strong>Set lr to 0.001.</strong> Now it barely moves. Learning is agonizingly slow. Finding the sweet spot matters.</li>
+      <li><strong>Saddle + Bowl:</strong> Start near the saddle region (around the center). The gradient is tiny there — descent almost stalls.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// STATE
+// =====================================================
+let currentLS = 'bowl';
+let landscapeData = null;
+let path = [];
+let w1 = 3.5, w2 = -3.0;
+let stepNum = 0;
+const RANGE = 4;
+
+// =====================================================
+// CANVAS SETUP
+// =====================================================
+const lsCanvas = document.getElementById('landscape-canvas');
+const lsCtx = lsCanvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+const SZ = 600;
+lsCanvas.width = SZ * dpr; lsCanvas.height = SZ * dpr;
+lsCanvas.style.width = SZ + 'px'; lsCanvas.style.height = SZ + 'px';
+lsCtx.scale(dpr, dpr);
+
+const lcCanvas = document.getElementById('loss-canvas');
+const lcCtx = lcCanvas.getContext('2d');
+lcCanvas.width = 1040 * dpr; lcCanvas.height = 200 * dpr;
+lcCanvas.style.width = '1040px'; lcCanvas.style.height = '200px';
+lcCtx.scale(dpr, dpr);
+
+function toC(v) { return (v + RANGE) / (2 * RANGE) * SZ; }
+function fromC(p) { return p / SZ * (2 * RANGE) - RANGE; }
+
+function getLR() { return Math.pow(10, parseFloat(document.getElementById('lr-slider').value)); }
+
+// =====================================================
+// LANDSCAPE RENDERING
+// =====================================================
+function drawLandscape() {
+  if (!landscapeData) return;
+  const { loss, w1_vals, w2_vals, loss_min, loss_max } = landscapeData;
+  const res = loss.length;
+  const cellW = SZ / res, cellH = SZ / res;
+
+  lsCtx.clearRect(0, 0, SZ, SZ);
+
+  // Heatmap
+  const range = loss_max - loss_min || 1;
+  for (let row = 0; row < res; row++) {
+    for (let col = 0; col < res; col++) {
+      const v = loss[res - 1 - row][col];
+      const t = Math.sqrt((v - loss_min) / range);  // sqrt for better contrast
+      const r = Math.round(10 + t * 50);
+      const g = Math.round(10 + (1 - t) * 80);
+      const b = Math.round(30 + (1 - t) * 100);
+      lsCtx.fillStyle = `rgb(${r},${g},${b})`;
+      lsCtx.fillRect(col * cellW, row * cellH, cellW + 0.5, cellH + 0.5);
+    }
+  }
+
+  // Contour lines
+  const numContours = 12;
+  lsCtx.strokeStyle = '#ffffff18';
+  lsCtx.lineWidth = 1;
+  for (let c = 1; c <= numContours; c++) {
+    const threshold = loss_min + (c / numContours) * range * 0.8;
+    drawContour(loss, res, cellW, cellH, threshold);
+  }
+
+  // Grid axes
+  lsCtx.strokeStyle = '#ffffff15';
+  lsCtx.lineWidth = 1;
+  const cx = toC(0);
+  lsCtx.beginPath(); lsCtx.moveTo(cx, 0); lsCtx.lineTo(cx, SZ); lsCtx.stroke();
+  lsCtx.beginPath(); lsCtx.moveTo(0, cx); lsCtx.lineTo(SZ, cx); lsCtx.stroke();
+
+  // Axis labels
+  lsCtx.font = '12px Consolas, monospace'; lsCtx.fillStyle = '#ffffff40'; lsCtx.textAlign = 'center';
+  lsCtx.fillText('w1 >', SZ - 25, toC(0) - 8);
+  lsCtx.fillText('w2', toC(0) + 16, 16);
+  for (let v = -3; v <= 3; v++) {
+    if (v === 0) continue;
+    lsCtx.fillText(v, toC(v), toC(0) + 16);
+    lsCtx.fillText(v, toC(0) - 16, toC(-v) + 4);
+  }
+
+  // Minimum marker
+  if (landscapeData.minimum) {
+    const mx = toC(landscapeData.minimum[0]);
+    const my = toC(-landscapeData.minimum[1]);
+    lsCtx.beginPath(); lsCtx.arc(mx, my, 6, 0, Math.PI * 2);
+    lsCtx.strokeStyle = '#66bb6a'; lsCtx.lineWidth = 2; lsCtx.stroke();
+    lsCtx.beginPath();
+    lsCtx.moveTo(mx - 4, my); lsCtx.lineTo(mx + 4, my);
+    lsCtx.moveTo(mx, my - 4); lsCtx.lineTo(mx, my + 4);
+    lsCtx.strokeStyle = '#66bb6a'; lsCtx.lineWidth = 1.5; lsCtx.stroke();
+  }
+
+  // Descent path
+  if (path.length > 1) {
+    lsCtx.beginPath();
+    lsCtx.strokeStyle = '#ff5252cc';
+    lsCtx.lineWidth = 2;
+    for (let i = 0; i < path.length; i++) {
+      const px = toC(path[i].w1), py = toC(-path[i].w2);
+      i === 0 ? lsCtx.moveTo(px, py) : lsCtx.lineTo(px, py);
+    }
+    lsCtx.stroke();
+
+    // Dots along path
+    for (let i = 0; i < path.length; i++) {
+      const px = toC(path[i].w1), py = toC(-path[i].w2);
+      const alpha = 0.3 + 0.7 * (i / path.length);
+      lsCtx.beginPath(); lsCtx.arc(px, py, 3, 0, Math.PI * 2);
+      lsCtx.fillStyle = `rgba(255,82,82,${alpha})`; lsCtx.fill();
+    }
+  }
+
+  // Current position
+  if (path.length > 0) {
+    const last = path[path.length - 1];
+    const px = toC(last.w1), py = toC(-last.w2);
+    lsCtx.beginPath(); lsCtx.arc(px, py, 8, 0, Math.PI * 2);
+    lsCtx.fillStyle = '#fff';
+    lsCtx.shadowColor = '#fff'; lsCtx.shadowBlur = 12;
+    lsCtx.fill();
+    lsCtx.shadowBlur = 0;
+    lsCtx.beginPath(); lsCtx.arc(px, py, 8, 0, Math.PI * 2);
+    lsCtx.strokeStyle = '#ef5350'; lsCtx.lineWidth = 2; lsCtx.stroke();
+  }
+}
+
+function drawContour(loss, res, cellW, cellH, threshold) {
+  // Simple marching squares approximation
+  for (let row = 0; row < res - 1; row++) {
+    for (let col = 0; col < res - 1; col++) {
+      const tl = loss[res - 1 - row][col] >= threshold;
+      const tr = loss[res - 1 - row][col + 1] >= threshold;
+      const bl = loss[res - 2 - row][col] >= threshold;
+      const br = loss[res - 2 - row][col + 1] >= threshold;
+      if (tl === tr && tr === bl && bl === br) continue;
+      const cx = (col + 0.5) * cellW, cy = (row + 0.5) * cellH;
+      lsCtx.beginPath(); lsCtx.arc(cx, cy, 0.7, 0, Math.PI * 2); lsCtx.stroke();
+    }
+  }
+}
+
+// =====================================================
+// LOSS CHART
+// =====================================================
+function drawLossChart() {
+  const W = 1040, H = 200;
+  lcCtx.clearRect(0, 0, W, H);
+
+  if (path.length < 2) {
+    lcCtx.font = '13px Segoe UI, sans-serif'; lcCtx.fillStyle = '#444';
+    lcCtx.textAlign = 'center'; lcCtx.fillText('Loss curve will appear as you step', W / 2, H / 2);
+    return;
+  }
+
+  const pad = { l: 55, r: 15, t: 10, b: 30 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+  const maxLoss = Math.max(...path.map(p => p.loss)) * 1.1 || 1;
+  const maxStep = path.length - 1;
+
+  function gx(s) { return pad.l + (s / maxStep) * gw; }
+  function gy(l) { return pad.t + gh - (l / maxLoss) * gh; }
+
+  // Grid
+  lcCtx.strokeStyle = '#1a1a35'; lcCtx.lineWidth = 1;
+  for (let v = 0; v <= maxLoss; v += maxLoss > 10 ? 5 : maxLoss > 2 ? 1 : 0.5) {
+    lcCtx.beginPath(); lcCtx.moveTo(pad.l, gy(v)); lcCtx.lineTo(pad.l + gw, gy(v)); lcCtx.stroke();
+  }
+
+  // Axes
+  lcCtx.strokeStyle = '#333'; lcCtx.lineWidth = 1.5;
+  lcCtx.beginPath(); lcCtx.moveTo(pad.l, pad.t + gh); lcCtx.lineTo(pad.l + gw, pad.t + gh); lcCtx.stroke();
+  lcCtx.beginPath(); lcCtx.moveTo(pad.l, pad.t); lcCtx.lineTo(pad.l, pad.t + gh); lcCtx.stroke();
+
+  // Curve
+  lcCtx.beginPath();
+  lcCtx.strokeStyle = '#ef5350'; lcCtx.lineWidth = 2.5;
+  for (let i = 0; i < path.length; i++) {
+    const x = gx(i), y = gy(path[i].loss);
+    i === 0 ? lcCtx.moveTo(x, y) : lcCtx.lineTo(x, y);
+  }
+  lcCtx.stroke();
+
+  // Labels
+  lcCtx.font = '11px Consolas, monospace'; lcCtx.fillStyle = '#555'; lcCtx.textAlign = 'center';
+  lcCtx.fillText('Step', pad.l + gw / 2, pad.t + gh + 24);
+  for (let s = 0; s <= maxStep; s += Math.max(1, Math.ceil(maxStep / 10))) {
+    lcCtx.fillText(s, gx(s), pad.t + gh + 14);
+  }
+  lcCtx.textAlign = 'right';
+  lcCtx.fillText(maxLoss.toFixed(1), pad.l - 6, pad.t + 10);
+  lcCtx.fillText('0', pad.l - 6, pad.t + gh + 4);
+  lcCtx.save(); lcCtx.translate(12, pad.t + gh / 2); lcCtx.rotate(-Math.PI / 2);
+  lcCtx.textAlign = 'center'; lcCtx.fillText('Loss', 0, 0); lcCtx.restore();
+}
+
+// =====================================================
+// INFO PANEL
+// =====================================================
+function updateInfo() {
+  document.getElementById('info-step').textContent = stepNum;
+  if (path.length > 0) {
+    const last = path[path.length - 1];
+    document.getElementById('info-loss').textContent = last.loss < 0.001 ? last.loss.toExponential(2) : last.loss.toFixed(4);
+    document.getElementById('info-w1').textContent = last.w1.toFixed(4);
+    document.getElementById('info-w2').textContent = last.w2.toFixed(4);
+    document.getElementById('info-grad').textContent = last.grad_magnitude !== undefined ? last.grad_magnitude.toFixed(4) : '--';
+  }
+  if (landscapeData && landscapeData.minimum) {
+    document.getElementById('info-min').textContent = `(${landscapeData.minimum[0]}, ${landscapeData.minimum[1]})`;
+  }
+}
+
+// =====================================================
+// API CALLS
+// =====================================================
+async function loadLandscape(name) {
+  try {
+    const resp = await fetch(`api/landscape/${name}`);
+    landscapeData = await resp.json();
+    resetPosition(3.5, -3.0);
+    drawLandscape();
+  } catch (e) { console.error(e); }
+}
+
+async function doStep() {
+  const last = path[path.length - 1];
+  if (!last) return;
+  try {
+    const resp = await fetch('api/step', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ landscape: currentLS, w1: last.w1, w2: last.w2, lr: getLR() }),
+    });
+    const result = await resp.json();
+    stepNum++;
+    path.push({ step: stepNum, w1: result.w1, w2: result.w2, loss: result.loss_after, grad_magnitude: result.grad_magnitude });
+    updateInfo();
+    drawLandscape();
+    drawLossChart();
+  } catch (e) { console.error(e); }
+}
+
+async function doRun() {
+  const last = path[path.length - 1];
+  if (!last) return;
+  try {
+    const resp = await fetch('api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ landscape: currentLS, w1: last.w1, w2: last.w2, lr: getLR(), steps: 50 }),
+    });
+    const result = await resp.json();
+    // Animate the path points
+    const newPoints = result.path.slice(1); // skip first (duplicate of current)
+    let i = 0;
+    function animateStep() {
+      if (i >= newPoints.length) return;
+      stepNum++;
+      newPoints[i].step = stepNum;
+      path.push(newPoints[i]);
+      updateInfo();
+      drawLandscape();
+      drawLossChart();
+      // Stop animating if diverged
+      if (newPoints[i].diverged) {
+        document.getElementById('info-loss').textContent = 'DIVERGED!';
+        document.getElementById('info-loss').style.color = '#ef5350';
+        return;
+      }
+      i++;
+      setTimeout(animateStep, 30); // slight delay so animation is visible
+    }
+    animateStep();
+  } catch (e) { console.error(e); }
+}
+
+function resetPosition(startW1, startW2) {
+  w1 = startW1; w2 = startW2;
+  stepNum = 0;
+  const loss = landscapeData ? computeLocalLoss(w1, w2) : 0;
+  path = [{ step: 0, w1, w2, loss }];
+  updateInfo();
+  drawLandscape();
+  drawLossChart();
+}
+
+function computeLocalLoss(w1, w2) {
+  // Approximate from the grid data
+  if (!landscapeData) return 0;
+  const { w1_vals, w2_vals, loss } = landscapeData;
+  const res = w1_vals.length;
+  const ci = Math.round((w1 - w1_vals[0]) / (w1_vals[res-1] - w1_vals[0]) * (res - 1));
+  const ri = Math.round((w2 - w2_vals[0]) / (w2_vals[res-1] - w2_vals[0]) * (res - 1));
+  if (ci < 0 || ci >= res || ri < 0 || ri >= res) return 0;
+  return loss[ri][ci];
+}
+
+// =====================================================
+// EVENT HANDLERS
+// =====================================================
+
+// Click landscape to set start
+lsCanvas.addEventListener('click', (e) => {
+  const rect = lsCanvas.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const cw1 = fromC(px);
+  const cw2 = -fromC(py);
+  resetPosition(parseFloat(cw1.toFixed(2)), parseFloat(cw2.toFixed(2)));
+});
+
+// Landscape buttons
+async function buildLSButtons() {
+  try {
+    const resp = await fetch('api/landscapes');
+    const data = await resp.json();
+    const container = document.getElementById('ls-btns');
+    for (const [name, info] of Object.entries(data)) {
+      const btn = document.createElement('button');
+      btn.className = 'ls-btn' + (name === currentLS ? ' active' : '');
+      btn.textContent = info.label;
+      btn.dataset.ls = name;
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.ls-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentLS = name;
+        document.getElementById('ls-desc').textContent = info.desc;
+        loadLandscape(name);
+      });
+      container.appendChild(btn);
+    }
+    document.getElementById('ls-desc').textContent = data[currentLS].desc;
+  } catch (e) { console.error(e); }
+}
+
+// LR slider (logarithmic)
+document.getElementById('lr-slider').addEventListener('input', (e) => {
+  const lr = getLR();
+  document.getElementById('lr-val').textContent = lr.toFixed(3);
+});
+
+document.getElementById('btn-step').addEventListener('click', doStep);
+document.getElementById('btn-run').addEventListener('click', doRun);
+document.getElementById('btn-reset').addEventListener('click', () => resetPosition(3.5, -3.0));
+
+// Init
+buildLSButtons();
+loadLandscape('bowl');
+</script>
+</body>
+</html>

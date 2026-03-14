@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02.3 — Learning Rate</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+
+  .demo { display: flex; gap: 24px; margin-bottom: 24px; }
+  .canvas-panel { flex: 1; }
+  .canvas-panel canvas { display: block; border-radius: 8px; cursor: crosshair; }
+  .side-panel { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px 20px; }
+  .ctrl h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 10px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .slider-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .slider-label { font-family: Consolas, monospace; font-size: 0.82rem; width: 40px; color: #9e9e9e; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; cursor: pointer; }
+  .s-slow::-webkit-slider-thumb { background: #4fc3f7; }
+  .s-good::-webkit-slider-thumb { background: #66bb6a; }
+  .s-fast::-webkit-slider-thumb { background: #ef5350; }
+  .slider-value { font-family: Consolas, monospace; font-size: 0.85rem; width: 50px; text-align: right; }
+
+  .run-btn { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #66bb6a; background: #0d0d20; color: #66bb6a; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .run-btn:hover { background: rgba(102,187,106,0.15); }
+
+  .result-cards { display: flex; gap: 10px; }
+  .result-card { flex: 1; background: #0d0d20; border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid; }
+  .result-card .rc-label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .result-card .rc-lr { font-family: Consolas, monospace; font-size: 0.85rem; color: #bbb; margin: 2px 0; }
+  .result-card .rc-loss { font-family: Consolas, monospace; font-size: 1.2rem; font-weight: 700; }
+  .result-card .rc-steps { font-size: 0.78rem; color: #666; }
+
+  .chart-row { display: flex; gap: 24px; margin-bottom: 24px; }
+  .chart-card { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; }
+  .chart-card h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+  .chart-card canvas { display: block; border-radius: 6px; width: 100%; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 8px 0 8px 28px; position: relative; color: #c0c0d0; font-size: 0.95rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+
+  @media (max-width: 800px) { .demo, .chart-row { flex-direction: column; } .side-panel { width: 100%; } .result-cards { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 02 &middot; How Learning Works</div>
+  <h1>Learning Rate</h1>
+  <p class="subtitle">Too slow, too fast, just right — the Goldilocks problem of optimization</p>
+
+  <div class="card">
+    <p>
+      The <strong>learning rate</strong> is the single most important knob in training.
+      Three runners start at the same point, each taking differently-sized steps downhill.
+      <span style="color:#4fc3f7">Blue</span> takes tiny cautious steps.
+      <span style="color:#66bb6a">Green</span> takes balanced steps.
+      <span style="color:#ef5350">Red</span> takes huge aggressive steps.
+      Watch what happens. <strong>Click the landscape</strong> to pick a starting point.
+    </p>
+  </div>
+
+  <div class="demo">
+    <div class="canvas-panel">
+      <div class="card" style="padding: 12px;">
+        <canvas id="ls-canvas" width="580" height="580"></canvas>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="ctrl">
+        <h3>Learning Rates</h3>
+        <div class="slider-row">
+          <span class="slider-dot" style="background:#4fc3f7"></span>
+          <span class="slider-label">Slow</span>
+          <input type="range" class="s-slow" id="lr-slow" min="-3" max="-0.5" step="0.05" value="-2.3">
+          <span class="slider-value" id="lr-slow-val" style="color:#4fc3f7">0.005</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-dot" style="background:#66bb6a"></span>
+          <span class="slider-label">Good</span>
+          <input type="range" class="s-good" id="lr-good" min="-2" max="0" step="0.05" value="-1">
+          <span class="slider-value" id="lr-good-val" style="color:#66bb6a">0.100</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-dot" style="background:#ef5350"></span>
+          <span class="slider-label">Fast</span>
+          <input type="range" class="s-fast" id="lr-fast" min="-1" max="0.3" step="0.05" value="-0.1">
+          <span class="slider-value" id="lr-fast-val" style="color:#ef5350">0.794</span>
+        </div>
+      </div>
+
+      <button class="run-btn" id="run-btn">Run All Three (60 steps)</button>
+
+      <div class="ctrl">
+        <h3>Results</h3>
+        <div class="result-cards">
+          <div class="result-card" style="border-color:#4fc3f7">
+            <div class="rc-label">Slow</div>
+            <div class="rc-lr" id="rc-lr-slow">--</div>
+            <div class="rc-loss" id="rc-loss-slow" style="color:#4fc3f7">--</div>
+          </div>
+          <div class="result-card" style="border-color:#66bb6a">
+            <div class="rc-label">Good</div>
+            <div class="rc-lr" id="rc-lr-good">--</div>
+            <div class="rc-loss" id="rc-loss-good" style="color:#66bb6a">--</div>
+          </div>
+          <div class="result-card" style="border-color:#ef5350">
+            <div class="rc-label">Fast</div>
+            <div class="rc-lr" id="rc-lr-fast">--</div>
+            <div class="rc-loss" id="rc-loss-fast" style="color:#ef5350">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="python-badge">Computed by Python &mdash; see <code>nn_code.py</code></div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <h3>Loss Over Steps</h3>
+      <canvas id="loss-canvas" width="500" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Sweet Spot — Final Loss vs Learning Rate</h3>
+      <canvas id="sweep-canvas" width="500" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Run with defaults.</strong> Blue crawls, Green converges smoothly, Red overshoots. This is the core lesson.</li>
+      <li><strong>Drag Red's lr even higher</strong> until it diverges. Where's the threshold?</li>
+      <li><strong>Make Slow and Good match.</strong> Can you find a "slow" lr that still converges in 60 steps?</li>
+      <li><strong>Look at the Sweet Spot chart</strong> (right). There's a valley of good learning rates. Too low = loss stays high (not enough steps). Too high = loss explodes.</li>
+      <li><strong>Click different start positions.</strong> The best lr changes depending on where you start — closer to the minimum needs a smaller lr.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const COL = { slow: '#4fc3f7', good: '#66bb6a', fast: '#ef5350' };
+let landscapeData = null;
+let runData = null;
+let startW1 = 3.5, startW2 = 3.0;
+
+// Canvas setup helper
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+const lsC = setupC('ls-canvas', 580, 580);
+const lcC = setupC('loss-canvas', 500, 220);
+const swC = setupC('sweep-canvas', 500, 220);
+
+function getLR(id) { return Math.pow(10, parseFloat(document.getElementById(id).value)); }
+function fmtLR(v) { return v >= 0.01 ? v.toFixed(3) : v.toExponential(1); }
+
+// =====================================================
+// LANDSCAPE
+// =====================================================
+function toC(v) {
+  const { w_min, w_max } = landscapeData;
+  return (v - w_min) / (w_max - w_min) * lsC.w;
+}
+function fromC(px) {
+  const { w_min, w_max } = landscapeData;
+  return w_min + px / lsC.w * (w_max - w_min);
+}
+
+function drawLandscape() {
+  if (!landscapeData) return;
+  const { ctx, w: W, h: H } = lsC;
+  const { loss, loss_min, loss_max } = landscapeData;
+  const res = loss.length;
+  const cw = W / res, ch = H / res;
+
+  ctx.clearRect(0, 0, W, H);
+  const range = loss_max - loss_min || 1;
+  for (let r = 0; r < res; r++) {
+    for (let c = 0; c < res; c++) {
+      const t = Math.sqrt((loss[res-1-r][c] - loss_min) / range);
+      ctx.fillStyle = `rgb(${10+t*50|0},${10+(1-t)*80|0},${30+(1-t)*100|0})`;
+      ctx.fillRect(c*cw, r*ch, cw+.5, ch+.5);
+    }
+  }
+
+  // Minimum
+  const mx = toC(landscapeData.minimum[0]), my = toC(landscapeData.w_max - landscapeData.minimum[1]);
+  ctx.beginPath(); ctx.arc(mx, my, 6, 0, Math.PI*2);
+  ctx.strokeStyle = '#66bb6a'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Start position
+  const sx = toC(startW1), sy = toC(landscapeData.w_max - startW2);
+  ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Paths
+  if (runData) {
+    for (const [label, color] of [['slow', COL.slow], ['good', COL.good], ['fast', COL.fast]]) {
+      const path = runData[label].path;
+      if (path.length < 2) continue;
+      ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.85;
+      for (let i = 0; i < path.length; i++) {
+        const px = toC(path[i].w1), py = toC(landscapeData.w_max - path[i].w2);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.stroke(); ctx.globalAlpha = 1;
+
+      // End dot
+      const last = path[path.length - 1];
+      const lx = toC(last.w1), ly = toC(landscapeData.w_max - last.w2);
+      ctx.beginPath(); ctx.arc(lx, ly, 6, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.fill(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+}
+
+// =====================================================
+// LOSS CHART
+// =====================================================
+function drawLossChart() {
+  const { ctx, w: W, h: H } = lcC;
+  ctx.clearRect(0, 0, W, H);
+  if (!runData) { ctx.font = '13px sans-serif'; ctx.fillStyle = '#444'; ctx.textAlign = 'center'; ctx.fillText('Click Run to see loss curves', W/2, H/2); return; }
+
+  const pad = { l: 50, r: 10, t: 10, b: 28 };
+  const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
+  let maxLoss = 0, maxStep = 0;
+  for (const label of ['slow','good','fast']) {
+    const p = runData[label].path;
+    maxStep = Math.max(maxStep, p.length - 1);
+    for (const pt of p) maxLoss = Math.max(maxLoss, pt.loss);
+  }
+  maxLoss = Math.min(maxLoss * 1.1, runData.slow.path[0].loss * 1.5) || 1;
+
+  function gx(s) { return pad.l + (s/maxStep)*gw; }
+  function gy(l) { return pad.t + gh - Math.min(l/maxLoss, 1)*gh; }
+
+  // Grid + axes
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t+gh); ctx.lineTo(pad.l+gw, pad.t+gh); ctx.strokeStyle = '#333'; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+gh); ctx.stroke();
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+  ctx.fillText('Step', pad.l+gw/2, H-4);
+
+  for (const [label, color] of [['slow', COL.slow], ['good', COL.good], ['fast', COL.fast]]) {
+    const p = runData[label].path;
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2;
+    for (let i = 0; i < p.length; i++) {
+      const x = gx(i), y = gy(p[i].loss);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Legend
+  let ly = pad.t + 8;
+  for (const [label, color] of [['slow', COL.slow], ['good', COL.good], ['fast', COL.fast]]) {
+    ctx.fillStyle = color; ctx.font = '700 11px Consolas'; ctx.textAlign = 'left';
+    ctx.fillText(`${label} (lr=${runData[label].lr.toFixed(3)})`, pad.l + 8, ly); ly += 16;
+  }
+}
+
+// =====================================================
+// SWEEP CHART
+// =====================================================
+async function drawSweep() {
+  const { ctx, w: W, h: H } = swC;
+  ctx.clearRect(0, 0, W, H);
+  try {
+    const resp = await fetch('api/sweep', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ w1: startW1, w2: startW2 }),
+    });
+    const data = await resp.json();
+    const pad = { l: 50, r: 10, t: 10, b: 28 };
+    const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
+    const maxLoss = Math.min(Math.max(...data.map(d=>d.loss))*1.1, 100);
+
+    function gx(i) { return pad.l + (i/(data.length-1))*gw; }
+    function gy(l) { return pad.t + gh - Math.min(l/maxLoss, 1)*gh; }
+
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t+gh); ctx.lineTo(pad.l+gw, pad.t+gh); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+gh); ctx.stroke();
+
+    ctx.beginPath(); ctx.strokeStyle = '#ffb74d'; ctx.lineWidth = 2.5;
+    for (let i = 0; i < data.length; i++) {
+      const x = gx(i), y = gy(data[i].loss);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Find minimum
+    let minIdx = 0;
+    for (let i = 1; i < data.length; i++) { if (data[i].loss < data[minIdx].loss) minIdx = i; }
+    const bx = gx(minIdx), by = gy(data[minIdx].loss);
+    ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI*2);
+    ctx.fillStyle = '#66bb6a'; ctx.shadowColor = '#66bb6a'; ctx.shadowBlur = 8; ctx.fill(); ctx.shadowBlur = 0;
+
+    ctx.font = '700 11px Consolas'; ctx.fillStyle = '#66bb6a'; ctx.textAlign = 'center';
+    ctx.fillText(`best: lr=${data[minIdx].lr.toFixed(3)}`, bx, by - 12);
+
+    // X axis labels
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+    ctx.fillText('0.001', gx(0), H-4);
+    ctx.fillText('Learning Rate (log scale)', pad.l+gw/2, H-4);
+    ctx.fillText('~2.0', gx(data.length-1), H-4);
+
+    // Mark the three current LRs
+    for (const [id, color] of [['lr-slow', COL.slow], ['lr-good', COL.good], ['lr-fast', COL.fast]]) {
+      const lr = getLR(id);
+      // Find closest data point
+      let closest = 0;
+      for (let i = 1; i < data.length; i++) {
+        if (Math.abs(data[i].lr - lr) < Math.abs(data[closest].lr - lr)) closest = i;
+      }
+      const cx = gx(closest), cy = gy(data[closest].loss);
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+  } catch(e) { console.error(e); }
+}
+
+// =====================================================
+// API & EVENTS
+// =====================================================
+async function loadLandscape() {
+  const resp = await fetch('api/landscape');
+  landscapeData = await resp.json();
+  drawLandscape();
+}
+
+async function runAll() {
+  const resp = await fetch('api/run', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      w1: startW1, w2: startW2,
+      lr_slow: getLR('lr-slow'), lr_good: getLR('lr-good'), lr_fast: getLR('lr-fast'),
+      steps: 60,
+    }),
+  });
+  runData = await resp.json();
+
+  // Update result cards
+  for (const label of ['slow', 'good', 'fast']) {
+    const r = runData[label];
+    document.getElementById(`rc-lr-${label}`).textContent = `lr = ${r.lr.toFixed(4)}`;
+    const lossEl = document.getElementById(`rc-loss-${label}`);
+    lossEl.textContent = r.final_loss < 0.001 ? r.final_loss.toExponential(2) : r.final_loss.toFixed(4);
+  }
+
+  drawLandscape();
+  drawLossChart();
+  drawSweep();
+}
+
+// Click to set start
+lsC.c.addEventListener('click', (e) => {
+  if (!landscapeData) return;
+  const rect = lsC.c.getBoundingClientRect();
+  startW1 = parseFloat(fromC(e.clientX - rect.left).toFixed(2));
+  startW2 = parseFloat((landscapeData.w_max - fromC(e.clientY - rect.top)).toFixed(2));
+  runData = null;
+  drawLandscape();
+  drawLossChart();
+  drawSweep();
+});
+
+// Sliders
+for (const [id, valId] of [['lr-slow','lr-slow-val'],['lr-good','lr-good-val'],['lr-fast','lr-fast-val']]) {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById(valId).textContent = fmtLR(getLR(id));
+  });
+}
+
+document.getElementById('run-btn').addEventListener('click', runAll);
+
+// Init
+loadLandscape();
+drawLossChart();
+</script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02.1 — Loss Functions</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 24px; font-family: Consolas, monospace; font-size: 1.0rem; text-align: center; margin: 14px 0; }
+
+  .graphs { display: flex; gap: 24px; margin-bottom: 24px; }
+  .graph-card { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; text-align: center; }
+  .graph-card h4 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+  .graph-card .loss-val { font-family: Consolas, monospace; font-size: 1.6rem; font-weight: 700; margin: 8px 0; }
+  .graph-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  .controls-row { display: flex; gap: 24px; margin-bottom: 24px; }
+  .control-card { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; }
+  .control-card h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 14px; }
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .slider-label { font-family: Consolas, monospace; font-size: 0.9rem; width: 70px; color: #9e9e9e; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .slider-value { font-family: Consolas, monospace; font-size: 0.95rem; width: 45px; text-align: right; color: #fff; }
+
+  .truth-btns { display: flex; gap: 8px; }
+  .truth-btn { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-family: Consolas, monospace; font-size: 0.95rem; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .truth-btn:hover { border-color: #555; }
+  .truth-btn.active { border-color: #4fc3f7; color: #4fc3f7; background: rgba(79,195,247,0.1); }
+
+  /* Batch section */
+  .batch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+  .batch-item { background: #0d0d20; border-radius: 8px; padding: 12px; text-align: center; border: 1px solid #1e1e3a; }
+  .batch-item .bi-label { font-size: 0.78rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .batch-item .bi-values { font-family: Consolas, monospace; font-size: 0.9rem; margin: 4px 0; }
+  .batch-item .bi-loss { font-family: Consolas, monospace; font-size: 1.1rem; font-weight: 700; }
+  .batch-item input[type="range"] { width: 100%; margin-top: 6px; }
+  .batch-total { background: #0d0d20; border-radius: 8px; padding: 16px; text-align: center; border: 1px solid #2a2a4a; margin-top: 12px; }
+  .batch-total .label { font-size: 0.85rem; color: #9e9e9e; }
+  .batch-total .value { font-family: Consolas, monospace; font-size: 1.8rem; font-weight: 700; color: #4fc3f7; }
+
+  .loss-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+  .loss-btn { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.85rem; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .loss-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .loss-btn:hover { border-color: #555; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 8px 0 8px 28px; position: relative; color: #c0c0d0; font-size: 0.95rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; margin-top: 10px; }
+
+  @media (max-width: 800px) { .graphs, .controls-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 02 &middot; How Learning Works</div>
+  <h1>Loss Functions</h1>
+  <p class="subtitle">Measuring "how wrong" a prediction is &mdash; the starting point of learning</p>
+
+  <div class="card">
+    <p>
+      Before a network can learn, it needs a way to measure its mistakes. A <strong>loss function</strong>
+      takes the network's prediction and the true answer, and returns a number:
+      <strong>0 = perfect</strong>, bigger = worse.
+    </p>
+    <div class="formula-box" style="color:#ef5350">
+      MSE = ( y<sub>true</sub> - y<sub>pred</sub> )<sup>2</sup>
+      &nbsp;&nbsp;&nbsp;&nbsp;
+      <span style="color:#666">|</span>
+      &nbsp;&nbsp;&nbsp;&nbsp;
+      <span style="color:#4fc3f7">BCE = -[ y<sub>true</sub> &middot; log(y<sub>pred</sub>) + (1 - y<sub>true</sub>) &middot; log(1 - y<sub>pred</sub>) ]</span>
+    </div>
+    <p>
+      <strong style="color:#ef5350">MSE</strong> (Mean Squared Error) treats all errors proportionally.
+      <strong style="color:#4fc3f7">BCE</strong> (Binary Cross-Entropy) <em>screams</em> at confident wrong predictions &mdash;
+      making it far better for classification. Compare them below.
+    </p>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-row">
+    <div class="control-card">
+      <h3>True Value (y<sub>true</sub>)</h3>
+      <div class="truth-btns">
+        <button class="truth-btn active" data-val="1">1 (Class A)</button>
+        <button class="truth-btn" data-val="0">0 (Class B)</button>
+      </div>
+    </div>
+    <div class="control-card">
+      <h3>Prediction (y<sub>pred</sub>)</h3>
+      <div class="slider-row">
+        <span class="slider-label">y<sub>pred</sub></span>
+        <input type="range" id="pred-slider" min="0.01" max="0.99" step="0.01" value="0.70">
+        <span class="slider-value" id="pred-val">0.70</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loss curves side by side -->
+  <div class="graphs">
+    <div class="graph-card">
+      <h4 style="color:#ef5350">MSE Loss</h4>
+      <div class="loss-val" id="mse-val" style="color:#ef5350">0.0900</div>
+      <canvas id="mse-canvas" width="460" height="300"></canvas>
+    </div>
+    <div class="graph-card">
+      <h4 style="color:#4fc3f7">Binary Cross-Entropy Loss</h4>
+      <div class="loss-val" id="bce-val" style="color:#4fc3f7">0.3567</div>
+      <canvas id="bce-canvas" width="460" height="300"></canvas>
+    </div>
+  </div>
+
+  <!-- Batch section -->
+  <div class="card">
+    <h3>Batch Loss &mdash; Multiple Predictions</h3>
+    <p>In practice, we compute loss over a <strong>batch</strong> of examples and average them.
+      Drag the prediction sliders to see how individual losses add up.</p>
+    <div class="loss-btns">
+      <button class="loss-btn active" data-loss="bce">Binary Cross-Entropy</button>
+      <button class="loss-btn" data-loss="mse">Mean Squared Error</button>
+    </div>
+    <div class="batch-grid" id="batch-grid"></div>
+    <div class="batch-total">
+      <span class="label">Mean Loss =</span>
+      <span class="value" id="batch-mean">0.00</span>
+    </div>
+    <div class="python-badge" style="margin-top:14px">Computed by Python &mdash; see <code>nn_code.py</code></div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Set truth=1, drag prediction from 0.01 to 0.99.</strong> Watch both curves. BCE explodes near 0 — it hates confident wrong answers. MSE stays relatively calm.</li>
+      <li><strong>Set truth=0</strong> and repeat. Now the curves flip — loss is high when prediction is near 1.</li>
+      <li><strong>Look at the curve shapes.</strong> MSE is a gentle parabola. BCE is a steep cliff on the wrong side. Which would push the network harder to fix its mistakes?</li>
+      <li><strong>In the batch section, make one prediction very wrong</strong> (drag it to the opposite extreme). Switch between BCE and MSE — see how much more BCE penalizes that outlier.</li>
+      <li><strong>Try to minimize the batch mean loss</strong> by getting all predictions close to their true values.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// STATE
+// =====================================================
+let yTrue = 1.0;
+let yPred = 0.7;
+let batchLossType = 'bce';
+let curveData = null;
+
+let batchData = [
+  { y_true: 1.0, y_pred: 0.9 },
+  { y_true: 0.0, y_pred: 0.1 },
+  { y_true: 1.0, y_pred: 0.3 },
+  { y_true: 0.0, y_pred: 0.8 },
+  { y_true: 1.0, y_pred: 0.99 },
+];
+
+const COL_MSE = '#ef5350';
+const COL_BCE = '#4fc3f7';
+
+// =====================================================
+// CANVAS SETUP
+// =====================================================
+function setupCanvas(id, w, h) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { canvas: c, ctx, w, h };
+}
+
+const mseC = setupCanvas('mse-canvas', 460, 300);
+const bceC = setupCanvas('bce-canvas', 460, 300);
+
+// =====================================================
+// GRAPH DRAWING
+// =====================================================
+function drawCurve(c, curvePoints, currentPred, currentLoss, color, yMax) {
+  const { ctx, w, h } = c;
+  const pad = { l: 45, r: 15, t: 10, b: 35 };
+  const gw = w - pad.l - pad.r;
+  const gh = h - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, w, h);
+
+  function gx(v) { return pad.l + v * gw; }
+  function gy(v) { return pad.t + gh - (v / yMax) * gh; }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (let v = 0; v <= yMax; v += yMax > 3 ? 1 : 0.5) {
+    const y = gy(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+  }
+  for (let v = 0; v <= 1; v += 0.25) {
+    const x = gx(v);
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + gh); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#333355'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + gh); ctx.lineTo(pad.l + gw, pad.t + gh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + gh); ctx.stroke();
+
+  // Labels
+  ctx.font = '11px Consolas, monospace'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
+  for (let v = 0; v <= 1; v += 0.25) ctx.fillText(v.toFixed(2), gx(v), pad.t + gh + 16);
+  ctx.fillText('prediction', pad.l + gw / 2, pad.t + gh + 30);
+  ctx.textAlign = 'right';
+  for (let v = 0; v <= yMax; v += yMax > 3 ? 1 : 0.5) ctx.fillText(v.toFixed(1), pad.l - 6, gy(v) + 4);
+  ctx.save(); ctx.translate(12, pad.t + gh / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center'; ctx.fillText('loss', 0, 0); ctx.restore();
+
+  // Curve
+  ctx.beginPath();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  const pts = curvePoints;
+  for (let i = 0; i < pts.y_pred.length; i++) {
+    const x = gx(pts.y_pred[i]);
+    const y = Math.max(pad.t, gy(pts.loss[i]));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Current point
+  const px = gx(currentPred);
+  const py = Math.max(pad.t, gy(currentLoss));
+
+  // Crosshairs
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = '#ffffff30'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(px, pad.t + gh); ctx.lineTo(px, py); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(px, py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Dot
+  ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2);
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 10; ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Value label
+  ctx.font = '700 12px Consolas, monospace'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  const labelY = py > pad.t + 25 ? py - 14 : py + 22;
+  ctx.fillText(currentLoss.toFixed(4), px + 12, labelY);
+}
+
+// =====================================================
+// BATCH SECTION
+// =====================================================
+function renderBatch() {
+  const grid = document.getElementById('batch-grid');
+  let html = '';
+  batchData.forEach((item, i) => {
+    const trueLabel = item.y_true === 1 ? 'A' : 'B';
+    const trueColor = item.y_true === 1 ? '#4fc3f7' : '#ffb74d';
+    html += `<div class="batch-item">
+      <div class="bi-label">Sample ${i + 1} &middot; True = <span style="color:${trueColor}">${trueLabel}</span></div>
+      <div class="bi-values">pred = <span id="bp-val-${i}">${item.y_pred.toFixed(2)}</span></div>
+      <input type="range" min="0.01" max="0.99" step="0.01" value="${item.y_pred}" data-idx="${i}"
+             oninput="updateBatchItem(${i}, this.value)">
+      <div class="bi-loss" id="bp-loss-${i}">--</div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function updateBatchItem(idx, val) {
+  batchData[idx].y_pred = parseFloat(val);
+  document.getElementById(`bp-val-${idx}`).textContent = parseFloat(val).toFixed(2);
+  computeBatch();
+}
+
+async function computeBatch() {
+  try {
+    const resp = await fetch('api/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ predictions: batchData, loss_type: batchLossType }),
+    });
+    const result = await resp.json();
+    result.individual.forEach((item, i) => {
+      const el = document.getElementById(`bp-loss-${i}`);
+      el.textContent = item.loss.toFixed(4);
+      el.style.color = item.loss > 1.0 ? '#ef5350' : item.loss > 0.3 ? '#ffb74d' : '#66bb6a';
+    });
+    document.getElementById('batch-mean').textContent = result.mean.toFixed(4);
+  } catch (e) { console.error(e); }
+}
+
+// =====================================================
+// MAIN UPDATE — calls Python
+// =====================================================
+async function update() {
+  const predEl = document.getElementById('pred-val');
+  predEl.textContent = yPred.toFixed(2);
+
+  try {
+    const resp = await fetch('api/compute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ y_true: yTrue, y_pred: yPred }),
+    });
+    const data = await resp.json();
+
+    document.getElementById('mse-val').textContent = data.mse.toFixed(4);
+    document.getElementById('bce-val').textContent = data.bce.toFixed(4);
+
+    // Dynamic y-axis scaling
+    const mseMax = Math.max(1.2, data.mse * 1.3);
+    const bceMax = Math.max(2.0, data.bce * 1.3, 5.0);
+
+    drawCurve(mseC, data.mse_curve, yPred, data.mse, COL_MSE, mseMax);
+    drawCurve(bceC, data.bce_curve, yPred, data.bce, COL_BCE, bceMax);
+  } catch (e) { console.error(e); }
+}
+
+// =====================================================
+// EVENT HANDLERS
+// =====================================================
+document.getElementById('pred-slider').addEventListener('input', (e) => {
+  yPred = parseFloat(e.target.value);
+  update();
+});
+
+document.querySelectorAll('.truth-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.truth-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    yTrue = parseFloat(btn.dataset.val);
+    update();
+  });
+});
+
+document.querySelectorAll('.loss-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.loss-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    batchLossType = btn.dataset.loss;
+    computeBatch();
+  });
+});
+
+// Init
+renderBatch();
+update();
+computeBatch();
+</script>
+</body>
+</html>

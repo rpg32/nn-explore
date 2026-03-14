@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Networks: From Zero to Transformers</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 30px; }
+
+  header { text-align: center; margin-bottom: 50px; }
+  header h1 {
+    font-size: 2.4rem; font-weight: 700; color: #fff;
+    margin-bottom: 8px;
+  }
+  header .tagline { font-size: 1.1rem; color: #9e9e9e; }
+
+  /* Phase headers */
+  .phase-header {
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 40px; margin-bottom: 20px;
+  }
+  .phase-header:first-of-type { margin-top: 0; }
+  .phase-num {
+    background: rgba(79,195,247,0.15); color: #4fc3f7;
+    font-size: 0.8rem; font-weight: 700; letter-spacing: 1px;
+    padding: 4px 12px; border-radius: 20px; white-space: nowrap;
+  }
+  .phase-title { font-size: 1.3rem; color: #fff; font-weight: 600; }
+
+  /* Group headers */
+  .group-header {
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #666; margin: 20px 0 10px 0; padding-left: 4px;
+  }
+
+  /* Lesson cards */
+  .lesson {
+    display: flex; align-items: center; gap: 18px;
+    background: #111128; border: 1px solid #1e1e3a;
+    border-radius: 10px; padding: 18px 22px;
+    margin-bottom: 10px; text-decoration: none;
+    transition: all 0.15s;
+  }
+  .lesson:hover {
+    border-color: #4fc3f7; background: #151535;
+    transform: translateX(4px);
+  }
+  .lesson.upcoming {
+    opacity: 0.4; pointer-events: none;
+  }
+
+  .lesson-num {
+    font-family: 'Consolas', monospace; font-size: 1.1rem;
+    font-weight: 700; color: #4fc3f7; min-width: 44px;
+  }
+  .lesson-body { flex: 1; }
+  .lesson-title { font-size: 1.05rem; font-weight: 600; color: #fff; }
+  .lesson-desc { font-size: 0.88rem; color: #888; margin-top: 2px; }
+
+  .lesson-status {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 1px;
+    padding: 3px 10px; border-radius: 12px;
+  }
+  .status-ready { background: rgba(76,175,80,0.15); color: #66bb6a; }
+  .status-upcoming { background: rgba(158,158,158,0.1); color: #555; }
+
+  .lesson-arrow { color: #333; font-size: 1.2rem; }
+  .lesson:hover .lesson-arrow { color: #4fc3f7; }
+
+  /* Footer */
+  footer {
+    text-align: center; margin-top: 50px; padding-top: 30px;
+    border-top: 1px solid #1e1e3a; color: #555; font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Neural Networks</h1>
+    <div class="tagline">From Zero to Transformers &mdash; A Hands-On Interactive Journey</div>
+  </header>
+
+  {% set ns = namespace(current_phase=0, current_group='') %}
+
+  {% for m in modules %}
+    {# Phase header #}
+    {% if m.phase != ns.current_phase %}
+      {% set ns.current_phase = m.phase %}
+      <div class="phase-header">
+        <span class="phase-num">PHASE {{ m.phase }}</span>
+        <span class="phase-title">{{ m.phase_name }}</span>
+      </div>
+    {% endif %}
+
+    {# Group header #}
+    {% if m.group != ns.current_group %}
+      {% set ns.current_group = m.group %}
+      <div class="group-header">Module {{ m.group }} &mdash; {{ m.group_name }}</div>
+    {% endif %}
+
+    {# Lesson card #}
+    {% if m.status == 'ready' %}
+    <a href="/{{ m.id }}/" class="lesson">
+    {% else %}
+    <div class="lesson upcoming">
+    {% endif %}
+      <span class="lesson-num">{{ m.id }}</span>
+      <div class="lesson-body">
+        <div class="lesson-title">{{ m.title }}</div>
+        <div class="lesson-desc">{{ m.desc }}</div>
+      </div>
+      {% if m.status == 'ready' %}
+        <span class="lesson-status status-ready">READY</span>
+        <span class="lesson-arrow">&rsaquo;</span>
+      {% else %}
+        <span class="lesson-status status-upcoming">UPCOMING</span>
+      {% endif %}
+    {% if m.status == 'ready' %}
+    </a>
+    {% else %}
+    </div>
+    {% endif %}
+  {% endfor %}
+
+  <footer>
+    Each lesson runs Python on the backend (see nn_code.py) &mdash; the browser just visualizes it.
+  </footer>
+</div>
+</body>
+</html>

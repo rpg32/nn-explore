@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03.2 — Backprop Step-by-Step</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+
+  .graph-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
+  .graph-card canvas { display: block; margin: 0 auto; border-radius: 8px; }
+
+  .controls-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 14px 18px; flex: 1; min-width: 160px; }
+  .ctrl h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 8px; }
+  .slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .sl { font-family: Consolas, monospace; font-size: 0.82rem; width: 30px; text-align: right; color: #9e9e9e; flex-shrink: 0; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .sv { font-family: Consolas, monospace; font-size: 0.82rem; width: 40px; text-align: right; color: #fff; }
+
+  .action-btns { display: flex; gap: 8px; }
+  .act-btn { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-align: center; background: #0d0d20; transition: all 0.15s; }
+  .btn-fwd { border-color: #4fc3f7; color: #4fc3f7; }
+  .btn-bwd { border-color: #ef5350; color: #ef5350; }
+  .btn-train { border-color: #66bb6a; color: #66bb6a; }
+  .btn-run { border-color: #ffb74d; color: #ffb74d; }
+  .btn-reset { border-color: #777; color: #777; }
+  .act-btn:hover { filter: brightness(1.3); }
+
+  .phase-label { text-align: center; font-size: 0.85rem; font-weight: 700; padding: 6px 0; margin-bottom: 8px; border-radius: 6px; }
+
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .detail-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px 16px; }
+  .detail-card h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .detail-card .row { display: flex; justify-content: space-between; font-family: Consolas, monospace; font-size: 0.85rem; padding: 2px 0; }
+  .detail-card .lbl { color: #888; }
+  .detail-card .val { font-weight: 600; }
+
+  .loss-bar { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; }
+  .loss-bar .lb-label { font-size: 0.85rem; color: #9e9e9e; }
+  .loss-bar .lb-val { font-family: Consolas, monospace; font-size: 1.5rem; font-weight: 700; }
+  .loss-bar .lb-pred { font-family: Consolas, monospace; font-size: 0.9rem; color: #aaa; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 7px 0 7px 28px; position: relative; color: #c0c0d0; font-size: 0.93rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 03 &middot; Backpropagation</div>
+  <h1>Backprop Step-by-Step</h1>
+  <p class="subtitle">Watch gradients flow backward through a 2-layer network</p>
+
+  <div class="card">
+    <p>A tiny network: <strong>2 inputs &rarr; 2 hidden neurons &rarr; 1 output</strong> (9 parameters).
+      Click <strong>Forward</strong> to push data through, <strong>Backward</strong> to see gradients flow back,
+      <strong>Train</strong> to update weights. Each click is one phase of the training loop.</p>
+  </div>
+
+  <div id="phase-label" class="phase-label" style="background:#1e1e3a; color:#666;">Click Forward to begin</div>
+
+  <div class="graph-card">
+    <canvas id="net-canvas" width="1040" height="340"></canvas>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Inputs</h3>
+      <div class="slider-row">
+        <span class="sl" style="color:#4fc3f7">x1</span>
+        <input type="range" id="s-x1" min="-2" max="2" step="0.1" value="1.0">
+        <span class="sv" id="v-x1">1.0</span>
+      </div>
+      <div class="slider-row">
+        <span class="sl" style="color:#4fc3f7">x2</span>
+        <input type="range" id="s-x2" min="-2" max="2" step="0.1" value="0.5">
+        <span class="sv" id="v-x2">0.5</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Target &amp; LR</h3>
+      <div class="slider-row">
+        <span class="sl" style="color:#66bb6a">y</span>
+        <input type="range" id="s-yt" min="0" max="1" step="1" value="1">
+        <span class="sv" id="v-yt">1</span>
+      </div>
+      <div class="slider-row">
+        <span class="sl" style="color:#ffb74d">lr</span>
+        <input type="range" id="s-lr" min="0.1" max="5" step="0.1" value="1.0">
+        <span class="sv" id="v-lr">1.0</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Actions</h3>
+      <div class="action-btns" style="flex-wrap:wrap;">
+        <button class="act-btn btn-fwd" id="btn-fwd">Forward</button>
+        <button class="act-btn btn-bwd" id="btn-bwd">Backward</button>
+        <button class="act-btn btn-train" id="btn-train">Update</button>
+      </div>
+      <div class="action-btns" style="margin-top:6px;">
+        <button class="act-btn btn-run" id="btn-run">Train x50</button>
+        <button class="act-btn btn-reset" id="btn-reset">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loss-bar">
+    <div><span class="lb-label">Loss</span><br><span class="lb-val" id="lb-loss" style="color:#ef5350">--</span></div>
+    <div><span class="lb-label">Prediction</span><br><span class="lb-val" id="lb-pred" style="color:#4fc3f7">--</span></div>
+    <div><span class="lb-label">Target</span><br><span class="lb-val" id="lb-target" style="color:#66bb6a">--</span></div>
+    <div><span class="lb-label">Step</span><br><span class="lb-val" id="lb-step">0</span></div>
+    <div class="python-badge">Python &mdash; <code>nn_code.py</code></div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-card">
+      <h4 style="color:#4fc3f7">Forward Values</h4>
+      <div id="fwd-details"></div>
+    </div>
+    <div class="detail-card">
+      <h4 style="color:#ef5350">Backward Gradients</h4>
+      <div id="bwd-details"></div>
+    </div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Click Forward, then Backward, then Update.</strong> This is one complete training step, decomposed. Watch the network diagram change at each phase.</li>
+      <li><strong>Repeat the cycle 5-10 times.</strong> Watch the loss shrink and prediction approach the target. The network is learning!</li>
+      <li><strong>Click "Train x50"</strong> to see rapid training. The prediction should converge close to the target.</li>
+      <li><strong>Look at the gradient values.</strong> Notice how gradients get SMALLER as they flow back to earlier layers &mdash; this is the vanishing gradient problem in miniature.</li>
+      <li><strong>Change target to 0</strong> and train again. The network learns to output low values instead.</li>
+      <li><strong>Compare the hidden layer gradients (dL/dW1) to output gradients (dL/dW2).</strong> The hidden gradients have passed through MORE multiplications, so they tend to be smaller.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+let phase = 'idle';  // idle, forward, backward
+let fwdData = null, bwdData = null;
+let trainStep = 0;
+
+const C = document.getElementById('net-canvas');
+const ctx = C.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+C.width = 1040 * dpr; C.height = 340 * dpr;
+C.style.width = '1040px'; C.style.height = '340px';
+ctx.scale(dpr, dpr);
+
+// Network layout
+const layers = [
+  [{x:100, y:120, id:'x1'}, {x:100, y:240, id:'x2'}],          // input
+  [{x:420, y:100, id:'h1'}, {x:420, y:260, id:'h2'}],           // hidden
+  [{x:740, y:180, id:'out'}],                                      // output
+  [{x:960, y:180, id:'loss'}],                                     // loss
+];
+const R = 30;
+
+function getParams() {
+  return {
+    x: [parseFloat(document.getElementById('s-x1').value), parseFloat(document.getElementById('s-x2').value)],
+    y_true: parseFloat(document.getElementById('s-yt').value),
+    lr: parseFloat(document.getElementById('s-lr').value),
+  };
+}
+
+function valColor(v) {
+  if (v > 0.001) return '#66bb6a';
+  if (v < -0.001) return '#ef5350';
+  return '#888';
+}
+
+function drawNetwork() {
+  ctx.clearRect(0, 0, 1040, 340);
+  const f = fwdData ? fwdData : null;
+  const b = bwdData ? bwdData.backward : null;
+  const p = bwdData ? bwdData.params : null;
+  const showFwd = phase === 'forward' || phase === 'backward';
+  const showBwd = phase === 'backward';
+
+  // Connections: input → hidden
+  for (let i = 0; i < 2; i++) {
+    for (let j = 0; j < 2; j++) {
+      const n1 = layers[0][i], n2 = layers[1][j];
+      const wVal = p ? p.W1[j][i] : 0;
+      const gVal = b ? b.dL_dW1[j][i] : null;
+      drawConnection(n1, n2, wVal, gVal, showFwd, showBwd);
+    }
+  }
+  // Connections: hidden → output
+  for (let j = 0; j < 2; j++) {
+    const n1 = layers[1][j], n2 = layers[2][0];
+    const wVal = p ? p.W2[0][j] : 0;
+    const gVal = b ? b.dL_dW2[j] : null;
+    drawConnection(n1, n2, wVal, gVal, showFwd, showBwd);
+  }
+  // Connection: output → loss
+  ctx.beginPath();
+  ctx.moveTo(layers[2][0].x + R, layers[2][0].y);
+  ctx.lineTo(layers[3][0].x - R, layers[3][0].y);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Nodes
+  const nodeData = getNodeData();
+  for (const layer of layers) {
+    for (const n of layer) {
+      const d = nodeData[n.id] || {};
+      drawNode(n, d, showFwd, showBwd);
+    }
+  }
+
+  // Layer labels
+  ctx.font = '11px Segoe UI'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+  ctx.fillText('Input', 100, 320);
+  ctx.fillText('Hidden Layer', 420, 320);
+  ctx.fillText('Output', 740, 320);
+  ctx.fillText('Loss', 960, 320);
+}
+
+function drawConnection(n1, n2, weight, grad, showFwd, showBwd) {
+  const aw = Math.min(Math.abs(weight) * 3, 5) + 0.5;
+  ctx.beginPath();
+  ctx.moveTo(n1.x + R, n1.y);
+  ctx.lineTo(n2.x - R, n2.y);
+  ctx.strokeStyle = weight >= 0 ? '#4fc3f760' : '#ef535060';
+  ctx.lineWidth = aw;
+  ctx.stroke();
+
+  // Weight label
+  const mx = (n1.x + n2.x) / 2, my = (n1.y + n2.y) / 2;
+  if (showFwd) {
+    ctx.font = '600 10px Consolas'; ctx.fillStyle = '#ffb74dcc'; ctx.textAlign = 'center';
+    ctx.fillText(weight.toFixed(2), mx, my - 6);
+  }
+  if (showBwd && grad !== null) {
+    ctx.font = '600 10px Consolas'; ctx.fillStyle = '#ef5350cc'; ctx.textAlign = 'center';
+    ctx.fillText(grad.toFixed(4), mx, my + 12);
+  }
+}
+
+function drawNode(n, d, showFwd, showBwd) {
+  // Circle
+  ctx.beginPath(); ctx.arc(n.x, n.y, R, 0, Math.PI * 2);
+  ctx.fillStyle = '#0d0d25'; ctx.fill();
+  const borderColor = n.id === 'loss' ? '#ef5350' : d.type === 'input' ? '#4fc3f7' : '#fff';
+  ctx.strokeStyle = borderColor; ctx.lineWidth = 2; ctx.stroke();
+
+  // Label
+  ctx.font = '700 13px Consolas'; ctx.fillStyle = borderColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(d.label || n.id, n.x, n.y - (d.value !== undefined ? 6 : 0));
+
+  // Value
+  if (showFwd && d.value !== undefined) {
+    ctx.font = '600 11px Consolas'; ctx.fillStyle = '#fff';
+    ctx.fillText(typeof d.value === 'number' ? d.value.toFixed(3) : d.value, n.x, n.y + 10);
+  }
+
+  // Gradient below node
+  if (showBwd && d.grad !== undefined) {
+    ctx.font = '600 11px Consolas'; ctx.fillStyle = '#ef5350'; ctx.textAlign = 'center';
+    ctx.fillText(d.grad.toFixed(4), n.x, n.y + R + 16);
+    ctx.font = '9px Consolas'; ctx.fillStyle = '#ef535088';
+    ctx.fillText(d.gradLabel || '', n.x, n.y + R + 28);
+  }
+}
+
+function getNodeData() {
+  const f = fwdData;
+  const b = bwdData ? bwdData.backward : null;
+  const d = {};
+  const p = getParams();
+  d.x1 = { label: 'x1', value: p.x[0], type: 'input' };
+  d.x2 = { label: 'x2', value: p.x[1], type: 'input' };
+  d.h1 = { label: 'h1', value: f ? f.h[0] : undefined, grad: b ? b.dL_dh[0] : undefined, gradLabel: 'dL/dh1' };
+  d.h2 = { label: 'h2', value: f ? f.h[1] : undefined, grad: b ? b.dL_dh[1] : undefined, gradLabel: 'dL/dh2' };
+  d.out = { label: 'pred', value: f ? f.pred : undefined, grad: b ? b.dL_dpred : undefined, gradLabel: 'dL/dpred' };
+  d.loss = { label: 'L', value: f ? f.loss : undefined };
+  return d;
+}
+
+function updateDetails() {
+  const fEl = document.getElementById('fwd-details');
+  const bEl = document.getElementById('bwd-details');
+
+  if (fwdData) {
+    const f = fwdData;
+    fEl.innerHTML = `
+      <div class="row"><span class="lbl">z1 (pre-act):</span><span class="val">[${f.z1.map(v=>v.toFixed(4)).join(', ')}]</span></div>
+      <div class="row"><span class="lbl">h (hidden):</span><span class="val" style="color:#66bb6a">[${f.h.map(v=>v.toFixed(4)).join(', ')}]</span></div>
+      <div class="row"><span class="lbl">z2 (pre-act):</span><span class="val">${f.z2.toFixed(4)}</span></div>
+      <div class="row"><span class="lbl">pred:</span><span class="val" style="color:#4fc3f7">${f.pred.toFixed(4)}</span></div>
+      <div class="row"><span class="lbl">loss:</span><span class="val" style="color:#ef5350">${f.loss.toFixed(4)}</span></div>`;
+  } else fEl.innerHTML = '<div style="color:#444">Click Forward</div>';
+
+  if (bwdData) {
+    const b = bwdData.backward;
+    bEl.innerHTML = `
+      <div class="row"><span class="lbl">dL/dpred:</span><span class="val" style="color:#ef5350">${b.dL_dpred.toFixed(4)}</span></div>
+      <div class="row"><span class="lbl">dL/dz2:</span><span class="val" style="color:#ef5350">${b.dL_dz2.toFixed(4)}</span></div>
+      <div class="row"><span class="lbl">dL/dW2:</span><span class="val">[${b.dL_dW2.map(v=>v.toFixed(4)).join(', ')}]</span></div>
+      <div class="row"><span class="lbl">dL/dh:</span><span class="val">[${b.dL_dh.map(v=>v.toFixed(4)).join(', ')}]</span></div>
+      <div class="row"><span class="lbl">dL/dz1:</span><span class="val">[${b.dL_dz1.map(v=>v.toFixed(4)).join(', ')}]</span></div>
+      <div class="row"><span class="lbl">dL/dW1:</span><span class="val">[${b.dL_dW1.map(r=>'['+r.map(v=>v.toFixed(3)).join(',')+']').join(', ')}]</span></div>`;
+  } else bEl.innerHTML = '<div style="color:#444">Click Backward</div>';
+}
+
+function updateLossBar() {
+  document.getElementById('lb-step').textContent = trainStep;
+  document.getElementById('lb-target').textContent = getParams().y_true.toFixed(0);
+  if (fwdData) {
+    document.getElementById('lb-loss').textContent = fwdData.loss.toFixed(4);
+    document.getElementById('lb-pred').textContent = fwdData.pred.toFixed(4);
+  }
+}
+
+function setPhase(p, text, color) {
+  phase = p;
+  const el = document.getElementById('phase-label');
+  el.textContent = text;
+  el.style.background = color + '20';
+  el.style.color = color;
+}
+
+// Slider displays
+['s-x1','s-x2','s-yt','s-lr'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const v = parseFloat(document.getElementById(id).value);
+    document.getElementById('v-' + id.slice(2)).textContent = v.toFixed(id === 's-yt' ? 0 : 1);
+  });
+});
+
+// Actions
+document.getElementById('btn-fwd').addEventListener('click', async () => {
+  const p = getParams();
+  const resp = await fetch('api/forward', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(p),
+  });
+  fwdData = await resp.json();
+  bwdData = null;
+  setPhase('forward', 'FORWARD PASS — values flow left to right', '#4fc3f7');
+  drawNetwork(); updateDetails(); updateLossBar();
+});
+
+document.getElementById('btn-bwd').addEventListener('click', async () => {
+  const p = getParams();
+  const resp = await fetch('api/backward', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(p),
+  });
+  bwdData = await resp.json();
+  fwdData = bwdData.forward;
+  setPhase('backward', 'BACKWARD PASS — gradients flow right to left', '#ef5350');
+  drawNetwork(); updateDetails(); updateLossBar();
+});
+
+document.getElementById('btn-train').addEventListener('click', async () => {
+  const p = getParams();
+  const resp = await fetch('api/train_step', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(p),
+  });
+  const data = await resp.json();
+  trainStep++;
+  fwdData = { ...data.forward, pred: data.new_pred, loss: data.new_loss };
+  bwdData = data;
+  setPhase('forward', `UPDATED — step ${trainStep}, new loss: ${data.new_loss.toFixed(4)}`, '#66bb6a');
+  drawNetwork(); updateDetails(); updateLossBar();
+});
+
+document.getElementById('btn-run').addEventListener('click', async () => {
+  const p = getParams();
+  const resp = await fetch('api/train_many', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ ...p, steps: 50 }),
+  });
+  const history = await resp.json();
+  let i = 0;
+  function animate() {
+    if (i >= history.length) return;
+    trainStep++;
+    const h = history[i];
+    document.getElementById('lb-loss').textContent = h.new_loss.toFixed(4);
+    document.getElementById('lb-pred').textContent = (h.pred || 0).toFixed(4);
+    document.getElementById('lb-step').textContent = trainStep;
+    setPhase('forward', `Training... step ${trainStep}, loss: ${h.new_loss.toFixed(4)}`, '#ffb74d');
+    i++;
+    setTimeout(animate, 40);
+  }
+  animate();
+  // After animation, do a fresh backward to update the diagram
+  setTimeout(async () => {
+    const resp2 = await fetch('api/backward', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(p),
+    });
+    bwdData = await resp2.json();
+    fwdData = bwdData.forward;
+    setPhase('forward', `Trained ${history.length} steps — loss: ${fwdData.loss.toFixed(4)}`, '#66bb6a');
+    drawNetwork(); updateDetails(); updateLossBar();
+  }, 50 * 45);
+});
+
+document.getElementById('btn-reset').addEventListener('click', async () => {
+  await fetch('api/reset', { method: 'POST' });
+  trainStep = 0; fwdData = null; bwdData = null;
+  setPhase('idle', 'Click Forward to begin', '#666');
+  drawNetwork(); updateDetails(); updateLossBar();
+  document.getElementById('lb-loss').textContent = '--';
+  document.getElementById('lb-pred').textContent = '--';
+});
+
+// Init
+drawNetwork(); updateDetails(); updateLossBar();
+</script>
+</body>
+</html>

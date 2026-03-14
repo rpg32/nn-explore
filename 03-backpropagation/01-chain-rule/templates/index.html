@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03.1 — The Chain Rule</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 16px; transition: color 0.15s; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #9e9e9e; margin-bottom: 30px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+  .card h3 { font-size: 1.05rem; color: #fff; margin-bottom: 14px; }
+  .card p { color: #c0c0d0; margin-bottom: 12px; font-size: 0.95rem; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.95rem; text-align: center; margin: 14px 0; }
+
+  .graph-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center; }
+  .graph-card canvas { display: block; margin: 0 auto; border-radius: 8px; }
+
+  .controls-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 200px; }
+  .ctrl h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 10px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .slider-label { font-family: Consolas, monospace; font-size: 0.88rem; width: 50px; text-align: right; flex-shrink: 0; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .slider-value { font-family: Consolas, monospace; font-size: 0.88rem; width: 52px; text-align: right; color: #fff; }
+
+  .mode-btns { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
+  .mode-btn { padding: 8px 20px; border-radius: 8px; border: 2px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .mode-btn:hover { border-color: #555; }
+  .mode-btn.active-fwd { border-color: #4fc3f7; color: #4fc3f7; }
+  .mode-btn.active-bwd { border-color: #ef5350; color: #ef5350; }
+  .mode-btn.active-both { border-color: #66bb6a; color: #66bb6a; }
+
+  .chain-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.85rem; line-height: 2; margin-top: 12px; }
+  .chain-box .chain-label { color: #ffb74d; font-weight: 700; }
+  .chain-box .chain-expr { color: #c0c0d0; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 12px; padding: 24px 28px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 14px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 8px 0 8px 28px; position: relative; color: #c0c0d0; font-size: 0.95rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 4px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .python-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; color: #66bb6a; }
+
+  @media (max-width: 800px) { .controls-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 03 &middot; Backpropagation</div>
+  <h1>The Chain Rule</h1>
+  <p class="subtitle">How gradients flow backward through a computation graph</p>
+
+  <div class="card">
+    <p>
+      In Module 02.4, computing gradients was easy &mdash; the neuron was a single step.
+      But deep networks have <strong>chains</strong> of operations. The <strong>chain rule</strong> says:
+      the gradient through a chain is the <em>product</em> of all local gradients.
+    </p>
+    <div class="formula-box">
+      <span style="color:#4fc3f7">x</span> &rarr;
+      <span style="color:#ffb74d">[&times; w]</span> &rarr; a &rarr;
+      <span style="color:#ffb74d">[+ b]</span> &rarr; z &rarr;
+      <span style="color:#ffb74d">[sigmoid]</span> &rarr; pred &rarr;
+      <span style="color:#ffb74d">[loss]</span> &rarr;
+      <span style="color:#ef5350">L</span>
+    </div>
+    <p>
+      <span style="color:#4fc3f7">Forward pass</span> flows left to right, computing values.
+      <span style="color:#ef5350">Backward pass</span> flows right to left, multiplying local gradients.
+      Toggle between views below to see each direction.
+    </p>
+  </div>
+
+  <!-- View mode -->
+  <div class="mode-btns">
+    <button class="mode-btn active-fwd" data-mode="forward">Forward Pass</button>
+    <button class="mode-btn" data-mode="backward">Backward Pass</button>
+    <button class="mode-btn" data-mode="both">Both</button>
+  </div>
+
+  <!-- Computation graph -->
+  <div class="graph-card">
+    <canvas id="graph-canvas" width="1040" height="380"></canvas>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Input</h3>
+      <div class="slider-row">
+        <span class="slider-label" style="color:#4fc3f7">x</span>
+        <input type="range" id="s-x" min="-3" max="3" step="0.1" value="2.0">
+        <span class="slider-value" id="v-x">2.00</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Parameters</h3>
+      <div class="slider-row">
+        <span class="slider-label" style="color:#ffb74d">w</span>
+        <input type="range" id="s-w" min="-3" max="3" step="0.1" value="0.5">
+        <span class="slider-value" id="v-w">0.50</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label" style="color:#ce93d8">b</span>
+        <input type="range" id="s-b" min="-3" max="3" step="0.1" value="-0.3">
+        <span class="slider-value" id="v-b">-0.30</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>True Label</h3>
+      <div class="slider-row">
+        <span class="slider-label" style="color:#66bb6a">y<sub>true</sub></span>
+        <input type="range" id="s-yt" min="0" max="1" step="1" value="1">
+        <span class="slider-value" id="v-yt">1</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chain expressions -->
+  <div class="card">
+    <h3>The Chain Rule Multiplication</h3>
+    <p>Each gradient is the product of all local derivatives along the path from loss back to that variable:</p>
+    <div class="chain-box" id="chain-display"></div>
+    <div class="python-badge" style="margin-top: 12px;">Computed by Python &mdash; see <code>nn_code.py</code></div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Toggle "Forward Pass" first.</strong> See how x flows through each operation left to right, producing values at each node.</li>
+      <li><strong>Toggle "Backward Pass".</strong> Now see gradients flow right to left. Each node multiplies the incoming gradient by its LOCAL derivative.</li>
+      <li><strong>Toggle "Both" to see the full picture.</strong> Forward values on top, backward gradients on bottom.</li>
+      <li><strong>Set x=0.</strong> Watch dL/dw become 0 &mdash; because da/dw = x = 0. If the input is zero, the weight gradient vanishes!</li>
+      <li><strong>Set w=0.</strong> Watch dL/dx become 0 &mdash; the gradient can't flow through a zero weight.</li>
+      <li><strong>Make z very large or very small</strong> (by adjusting w and x). Watch the sigmoid local gradient shrink toward 0. This is the <strong>vanishing gradient problem</strong> &mdash; previewed here, explored fully in Module 03.3.</li>
+      <li><strong>Read the chain multiplication at the bottom.</strong> Every gradient is just the product of simple local derivatives. That's the entire idea behind backpropagation.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+let mode = 'forward';
+let graphData = null;
+
+const canvas = document.getElementById('graph-canvas');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+canvas.width = 1040 * dpr; canvas.height = 380 * dpr;
+canvas.style.width = '1040px'; canvas.style.height = '380px';
+ctx.scale(dpr, dpr);
+
+const COL_FWD = '#4fc3f7';
+const COL_BWD = '#ef5350';
+const COL_OP = '#ffb74d';
+const COL_DIM = '#555570';
+
+// Node positions (x-center, y-center)
+const nodes = [
+  { id: 'x',    x: 60,  label: 'x',       type: 'value' },
+  { id: 'mul',  x: 190, label: '× w',     type: 'op' },
+  { id: 'a',    x: 320, label: 'a',       type: 'value' },
+  { id: 'add',  x: 450, label: '+ b',     type: 'op' },
+  { id: 'z',    x: 580, label: 'z',       type: 'value' },
+  { id: 'sig',  x: 710, label: 'sigmoid', type: 'op' },
+  { id: 'pred', x: 840, label: 'pred',    type: 'value' },
+  { id: 'loss', x: 970, label: 'loss',    type: 'op' },
+];
+const NY = 160;  // vertical center for nodes
+const R = 34;    // node radius
+
+function drawGraph() {
+  if (!graphData) return;
+  const f = graphData.forward;
+  const b = graphData.backward;
+  ctx.clearRect(0, 0, 1040, 380);
+
+  const showFwd = mode === 'forward' || mode === 'both';
+  const showBwd = mode === 'backward' || mode === 'both';
+
+  // Connection lines
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const n1 = nodes[i], n2 = nodes[i + 1];
+    // Forward arrow (top)
+    if (showFwd) {
+      ctx.beginPath();
+      ctx.moveTo(n1.x + R + 2, NY - 12);
+      ctx.lineTo(n2.x - R - 2, NY - 12);
+      ctx.strokeStyle = COL_FWD + '60';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // arrowhead
+      ctx.beginPath();
+      ctx.moveTo(n2.x - R - 2, NY - 12);
+      ctx.lineTo(n2.x - R - 10, NY - 17);
+      ctx.lineTo(n2.x - R - 10, NY - 7);
+      ctx.closePath();
+      ctx.fillStyle = COL_FWD + '60';
+      ctx.fill();
+    }
+    // Backward arrow (bottom)
+    if (showBwd) {
+      ctx.beginPath();
+      ctx.moveTo(n2.x - R - 2, NY + 12);
+      ctx.lineTo(n1.x + R + 2, NY + 12);
+      ctx.strokeStyle = COL_BWD + '60';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(n1.x + R + 2, NY + 12);
+      ctx.lineTo(n1.x + R + 10, NY + 7);
+      ctx.lineTo(n1.x + R + 10, NY + 17);
+      ctx.closePath();
+      ctx.fillStyle = COL_BWD + '60';
+      ctx.fill();
+    }
+  }
+
+  // Nodes
+  for (const n of nodes) {
+    const isOp = n.type === 'op';
+    // Circle
+    ctx.beginPath(); ctx.arc(n.x, NY, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d25';
+    ctx.fill();
+    ctx.strokeStyle = isOp ? COL_OP : COL_FWD;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Label
+    ctx.font = `${isOp ? '600' : '700'} ${isOp ? 12 : 14}px Consolas, monospace`;
+    ctx.fillStyle = isOp ? COL_OP : '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.label, n.x, NY);
+  }
+
+  // Forward values (above nodes)
+  if (showFwd) {
+    const fwdVals = {
+      'x':    f.x, 'a': f.a, 'z': f.z, 'pred': f.pred,
+    };
+    // Loss at the end
+    ctx.font = '700 13px Consolas, monospace';
+    ctx.fillStyle = COL_FWD;
+    ctx.textAlign = 'center';
+
+    for (const n of nodes) {
+      let val = null;
+      if (n.id === 'x') val = f.x;
+      else if (n.id === 'a') val = f.a;
+      else if (n.id === 'z') val = f.z;
+      else if (n.id === 'pred') val = f.pred;
+      else continue;
+      ctx.fillText(val.toFixed(3), n.x, NY - R - 16);
+      ctx.font = '10px Consolas'; ctx.fillStyle = COL_FWD + '80';
+      ctx.fillText('value', n.x, NY - R - 4);
+      ctx.font = '700 13px Consolas'; ctx.fillStyle = COL_FWD;
+    }
+    // Loss
+    ctx.fillStyle = '#ef5350';
+    ctx.fillText('L=' + f.L.toFixed(4), nodes[7].x, NY - R - 16);
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#ef535080';
+    ctx.fillText('loss', nodes[7].x, NY - R - 4);
+
+    // Operation details
+    ctx.font = '10px Consolas'; ctx.fillStyle = COL_OP + 'aa';
+    ctx.fillText(`w=${f.w.toFixed(2)}`, nodes[1].x, NY + R + 14);
+    ctx.fillText(`b=${f.b.toFixed(2)}`, nodes[3].x, NY + R + 14);
+    ctx.fillText(`y=${f.y_true.toFixed(0)}`, nodes[7].x, NY + R + 14);
+  }
+
+  // Backward gradients (below nodes)
+  if (showBwd) {
+    const grads = [
+      { n: nodes[7], val: b.dL_dL,    label: 'dL/dL' },
+      { n: nodes[6], val: b.dL_dpred, label: 'dL/dpred', local: b.local_loss },
+      { n: nodes[4], val: b.dL_dz,    label: 'dL/dz',    local: b.local_sigmoid },
+      { n: nodes[2], val: b.dL_da,    label: 'dL/da',    local: b.local_add_a },
+      { n: nodes[0], val: b.dL_dx,    label: 'dL/dx',    local: b.local_mul_x },
+    ];
+
+    const yBase = NY + R + (showFwd ? 40 : 16);
+    for (const g of grads) {
+      // Gradient value
+      ctx.font = '700 13px Consolas, monospace';
+      ctx.fillStyle = COL_BWD;
+      ctx.textAlign = 'center';
+      ctx.fillText(g.val.toFixed(4), g.n.x, yBase);
+      // Label
+      ctx.font = '10px Consolas'; ctx.fillStyle = COL_BWD + '80';
+      ctx.fillText(g.label, g.n.x, yBase + 14);
+      // Local gradient
+      if (g.local !== undefined) {
+        ctx.font = '10px Consolas'; ctx.fillStyle = '#ffb74daa';
+        ctx.fillText(`local: ${g.local.toFixed(3)}`, g.n.x, yBase + 28);
+      }
+    }
+
+    // Also show dL/dw and dL/db
+    ctx.font = '700 12px Consolas'; ctx.fillStyle = '#ce93d8';
+    ctx.fillText(`dL/dw = ${b.dL_dw.toFixed(4)}`, nodes[1].x, yBase + 50);
+    ctx.fillText(`dL/db = ${b.dL_db.toFixed(4)}`, nodes[3].x, yBase + 50);
+
+    // Backward flow label
+    ctx.font = '11px Segoe UI'; ctx.fillStyle = COL_BWD + '60'; ctx.textAlign = 'right';
+    ctx.fillText('gradients flow backward', 1030, 370);
+  }
+
+  if (showFwd) {
+    ctx.font = '11px Segoe UI'; ctx.fillStyle = COL_FWD + '60'; ctx.textAlign = 'left';
+    ctx.fillText('values flow forward', 10, 20);
+  }
+}
+
+// Chain display
+function updateChains() {
+  if (!graphData) return;
+  const el = document.getElementById('chain-display');
+  const c = graphData.chains;
+  el.innerHTML =
+    `<span class="chain-label">dL/dw</span> = <span class="chain-expr">${c.dL_dw}</span><br>` +
+    `<span class="chain-label">dL/db</span> = <span class="chain-expr">${c.dL_db}</span><br>` +
+    `<span class="chain-label">dL/dx</span> = <span class="chain-expr">${c.dL_dx}</span>`;
+}
+
+// Slider handling
+const sliders = ['s-x', 's-w', 's-b', 's-yt'];
+const valEls = ['v-x', 'v-w', 'v-b', 'v-yt'];
+
+function getParams() {
+  return {
+    x: parseFloat(document.getElementById('s-x').value),
+    w: parseFloat(document.getElementById('s-w').value),
+    b: parseFloat(document.getElementById('s-b').value),
+    y_true: parseFloat(document.getElementById('s-yt').value),
+  };
+}
+
+async function update() {
+  for (let i = 0; i < sliders.length; i++) {
+    const v = parseFloat(document.getElementById(sliders[i]).value);
+    document.getElementById(valEls[i]).textContent = v.toFixed(sliders[i] === 's-yt' ? 0 : 2);
+  }
+  try {
+    const resp = await fetch('api/compute', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(getParams()),
+    });
+    graphData = await resp.json();
+    drawGraph();
+    updateChains();
+  } catch(e) { console.error(e); }
+}
+
+sliders.forEach(id => {
+  document.getElementById(id).addEventListener('input', update);
+});
+
+// Mode buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => {
+      b.classList.remove('active-fwd', 'active-bwd', 'active-both');
+    });
+    mode = btn.dataset.mode;
+    btn.classList.add(mode === 'forward' ? 'active-fwd' : mode === 'backward' ? 'active-bwd' : 'active-both');
+    drawGraph();
+  });
+});
+
+update();
+</script>
+</body>
+</html>
