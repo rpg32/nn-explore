@@ -197,6 +197,17 @@ MODULES = [
         'path': '06-cnns/01-convolution',
         'status': 'ready',
     },
+    {
+        'id': '06-2',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '06',
+        'group_name': 'CNNs',
+        'title': 'Building a CNN',
+        'desc': 'The full pipeline — convolution, pooling, stacking, flattening to classification.',
+        'path': '06-cnns/02-building-a-cnn',
+        'status': 'ready',
+    },
 ]
 
 
@@ -687,6 +698,33 @@ def m06_1_step():
     data = request.json
     result = nn['06-1'].compute_single_step(data['image'], data['kernel'], data['row'], data['col'])
     return jsonify(result) if result else ('', 400)
+
+
+# =============================================================
+# MODULE 06-2: Building a CNN
+# =============================================================
+_cnn_images = None
+
+@app.route('/06-2/')
+def m06_2_page():
+    return send_file(os.path.join(BASE, '06-cnns/02-building-a-cnn/templates/index.html'))
+
+@app.route('/06-2/api/images')
+def m06_2_images():
+    global _cnn_images
+    if _cnn_images is None:
+        _cnn_images = nn['06-2'].make_images()
+    return jsonify({k: {'name': v['name'], 'data': v['data'].tolist()} for k, v in _cnn_images.items()})
+
+@app.route('/06-2/api/pipeline', methods=['POST'])
+def m06_2_pipeline():
+    data = request.json
+    return jsonify(nn['06-2'].run_pipeline(data['image'], data.get('pool_mode', 'max')))
+
+@app.route('/06-2/api/pooling', methods=['POST'])
+def m06_2_pooling():
+    data = request.json
+    return jsonify(nn['06-2'].pooling_demo(data['image'], data.get('pool_mode', 'max')))
 
 
 # =============================================================

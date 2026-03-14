@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06.2 — Building a CNN</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+  h2 { font-size: 1.2rem; color: #fff; margin: 24px 0 12px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ds-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.76rem; cursor: pointer; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .run-btn { padding: 10px 20px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+
+  /* Pipeline stages */
+  .pipeline { margin-bottom: 20px; }
+  .stage { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  .stage-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .stage-num { background: #4fc3f7; color: #000; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
+  .stage-title { font-weight: 700; font-size: 0.95rem; }
+  .stage-shape { font-family: Consolas, monospace; font-size: 0.78rem; color: #666; margin-left: auto; }
+  .stage-desc { font-size: 0.82rem; color: #888; margin-bottom: 8px; }
+  .maps-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .map-item { text-align: center; }
+  .map-item canvas { display: block; border-radius: 3px; border: 1px solid #1e1e3a; }
+  .map-label { font-family: Consolas, monospace; font-size: 0.68rem; color: #666; margin-top: 3px; }
+
+  .arrow-down { text-align: center; color: #333; font-size: 1.3rem; margin: 4px 0; }
+
+  /* Flatten visualization */
+  .flat-bar { display: flex; height: 20px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .flat-cell { flex: 1; min-width: 1px; }
+
+  /* Architecture summary */
+  .arch-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .arch-table th, .arch-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #1a1a30; font-size: 0.82rem; }
+  .arch-table th { color: #9e9e9e; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; }
+  .arch-table td { font-family: Consolas, monospace; color: #c0c0d0; }
+  .arch-table td:last-child { color: #ffb74d; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 06 &middot; CNNs</div>
+  <h1>Building a CNN</h1>
+  <p class="subtitle">From raw pixels through convolution, pooling, and stacking — the full pipeline</p>
+
+  <div class="card">
+    <p>Watch an image flow through a complete CNN. At each stage, the spatial dimensions <strong>shrink</strong>
+      while the number of feature maps <strong>grows</strong>. Early layers detect edges, deeper layers detect
+      combinations of edges (corners, curves), and the final flattened vector feeds into an MLP for classification.</p>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Input Image</h3>
+      <div class="ds-btns" id="img-btns"></div>
+    </div>
+    <div class="ctrl">
+      <h3>Pooling Mode</h3>
+      <div class="ds-btns">
+        <button class="ds-btn active" data-pool="max">Max Pool</button>
+        <button class="ds-btn" data-pool="avg">Avg Pool</button>
+      </div>
+    </div>
+    <button class="run-btn" id="btn-run">▶ Run Pipeline</button>
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="card">
+    <h3 style="margin-bottom:8px; font-size:0.95rem;">Architecture Summary</h3>
+    <table class="arch-table" id="arch-table">
+      <tr><th>Stage</th><th>Output Shape</th><th>Parameters</th></tr>
+    </table>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Circle:</strong> Conv1 shows 4 edge maps — each highlights the circle's boundary from a different angle. After pooling, the edges are still there but at half resolution. Conv2 combines edges into corners and curves.</li>
+      <li><strong>Cross:</strong> The horizontal and vertical edge kernels each light up on different arms. Conv2's "Cross" detector responds strongly because it sees both edge types meeting.</li>
+      <li><strong>Digit "7":</strong> H-Edge finds the top bar, V-Edge finds the downstroke. Conv2 combines these into shape fragments. This is how a CNN would start to recognize "7" vs "1" vs "4".</li>
+      <li><strong>Compare Max vs Avg pooling.</strong> Max pooling preserves the strongest activation (sharp edges survive). Avg pooling smooths everything out (weaker signal).</li>
+      <li><strong>Watch the shapes shrink:</strong> 28×28 → 26×26 → 13×13 → 11×11 → 5×5. By the end, a 28×28 image has been compressed into a small grid of high-level features.</li>
+      <li><strong>Look at the parameter count.</strong> Conv layers have very few parameters (9 per kernel). The Dense layer at the end has the most — but it only takes the tiny flattened vector, not the full image. That's the efficiency of CNNs.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+let images = {};
+let curImage = null, curImageName = '';
+let poolMode = 'max';
+
+document.querySelectorAll('[data-pool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-pool]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    poolMode = btn.dataset.pool;
+    runPipeline();
+  });
+});
+
+function drawMap(canvas, data, size) {
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const rows = data.length, cols = data[0].length;
+  const cs = size / Math.max(rows, cols);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = Math.round(data[r][c] * 255);
+      ctx.fillStyle = `rgb(${v},${v},${v})`;
+      ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+  }
+}
+
+function makeStageHTML(num, title, desc, shape, maps, labels, mapSize) {
+  let html = `<div class="stage">
+    <div class="stage-header">
+      <div class="stage-num">${num}</div>
+      <span class="stage-title">${title}</span>
+      <span class="stage-shape">${shape}</span>
+    </div>`;
+  if (desc) html += `<div class="stage-desc">${desc}</div>`;
+  html += `<div class="maps-row">`;
+  for (let i = 0; i < maps.length; i++) {
+    const id = `map-${num}-${i}`;
+    html += `<div class="map-item">
+      <canvas id="${id}" width="${mapSize}" height="${mapSize}"></canvas>
+      ${labels ? `<div class="map-label">${labels[i]}</div>` : ''}
+    </div>`;
+  }
+  html += '</div></div>';
+  html += '<div class="arrow-down">↓</div>';
+  return { html, ids: maps.map((_, i) => `map-${num}-${i}`) };
+}
+
+async function runPipeline() {
+  if (!curImage) return;
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+
+  try {
+    const resp = await fetch('api/pipeline', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: curImage, pool_mode: poolMode }),
+    });
+    const data = await resp.json();
+    const el = document.getElementById('pipeline');
+    let allHTML = '';
+    const allDraws = [];
+
+    // Stage 1: Input
+    const s1 = makeStageHTML(1, 'Input Image', 'Raw grayscale pixels',
+      data.input.shape.join('×') + '×1', [data.input.data], null, 140);
+    allHTML += s1.html;
+    allDraws.push({ ids: s1.ids, maps: [data.input.data], size: 140 });
+
+    // Stage 2: Conv1 + ReLU
+    const s2 = makeStageHTML(2, 'Conv1 + ReLU', '4 learned kernels (3×3) detect edges in different orientations',
+      data.conv1.shape.join('×') + '×' + data.conv1.num,
+      data.conv1.maps, data.conv1.names, 120);
+    allHTML += s2.html;
+    allDraws.push({ ids: s2.ids, maps: data.conv1.maps, size: 120 });
+
+    // Stage 3: Pool1
+    const s3 = makeStageHTML(3, `${poolMode === 'max' ? 'Max' : 'Avg'} Pool (2×2)`,
+      'Shrink by half — keep strongest activations, add translation invariance',
+      data.pool1.shape.join('×') + '×' + data.conv1.num,
+      data.pool1.maps, data.conv1.names, 100);
+    allHTML += s3.html;
+    allDraws.push({ ids: s3.ids, maps: data.pool1.maps, size: 100 });
+
+    // Stage 4: Conv2 + ReLU
+    const s4 = makeStageHTML(4, 'Conv2 + ReLU', 'Combines edge maps → detects corners, curves, and shapes',
+      data.conv2.shape.join('×') + '×' + data.conv2.num,
+      data.conv2.maps, data.conv2.names, 90);
+    allHTML += s4.html;
+    allDraws.push({ ids: s4.ids, maps: data.conv2.maps, size: 90 });
+
+    // Stage 5: Pool2
+    const s5 = makeStageHTML(5, `${poolMode === 'max' ? 'Max' : 'Avg'} Pool (2×2)`,
+      'Shrink again — now tiny spatial maps with rich feature info',
+      data.pool2.shape.join('×') + '×' + data.conv2.num,
+      data.pool2.maps, data.conv2.names, 80);
+    allHTML += s5.html;
+    allDraws.push({ ids: s5.ids, maps: data.pool2.maps, size: 80 });
+
+    // Stage 6: Flatten
+    allHTML += `<div class="stage">
+      <div class="stage-header">
+        <div class="stage-num">6</div>
+        <span class="stage-title">Flatten</span>
+        <span class="stage-shape">${data.flatten.length} numbers</span>
+      </div>
+      <div class="stage-desc">Unroll all feature maps into a single 1D vector — this feeds into a regular MLP</div>
+      <div class="flat-bar" id="flat-bar"></div>
+    </div>`;
+    allHTML += '<div class="arrow-down">↓</div>';
+
+    // Stage 7: Dense
+    allHTML += `<div class="stage">
+      <div class="stage-header">
+        <div class="stage-num">7</div>
+        <span class="stage-title">Dense → 10 Classes</span>
+        <span class="stage-shape">10</span>
+      </div>
+      <div class="stage-desc">Regular MLP layer (Module 04) — maps the feature vector to class probabilities</div>
+    </div>`;
+
+    el.innerHTML = allHTML;
+
+    // Draw all maps
+    for (const draw of allDraws) {
+      for (let i = 0; i < draw.ids.length; i++) {
+        const canvas = document.getElementById(draw.ids[i]);
+        if (canvas) drawMap(canvas, draw.maps[i], draw.size);
+      }
+    }
+
+    // Draw flatten bar
+    const flatBar = document.getElementById('flat-bar');
+    if (flatBar && data.flatten.values.length > 0) {
+      const maxV = Math.max(...data.flatten.values, 0.01);
+      flatBar.innerHTML = data.flatten.values.map(v => {
+        const intensity = Math.round((v / maxV) * 200 + 20);
+        return `<div class="flat-cell" style="background:rgb(${Math.round(intensity*0.4)},${Math.round(intensity*0.6)},${intensity})"></div>`;
+      }).join('');
+    }
+
+    // Architecture table
+    const table = document.getElementById('arch-table');
+    table.innerHTML = '<tr><th>Stage</th><th>Output Shape</th><th>Parameters</th></tr>';
+    for (const s of data.summary.stages) {
+      table.innerHTML += `<tr><td>${s.name}</td><td>${s.shape}</td><td>${s.params > 0 ? s.params : '—'}</td></tr>`;
+    }
+
+  } finally {
+    btn.textContent = '▶ Run Pipeline'; btn.disabled = false;
+  }
+}
+
+async function init() {
+  const resp = await fetch('api/images');
+  images = await resp.json();
+
+  const el = document.getElementById('img-btns');
+  for (const [id, info] of Object.entries(images)) {
+    const btn = document.createElement('button');
+    btn.className = 'ds-btn';
+    btn.textContent = info.name;
+    btn.dataset.id = id;
+    btn.addEventListener('click', () => {
+      curImageName = id;
+      curImage = info.data;
+      document.querySelectorAll('#img-btns .ds-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+      runPipeline();
+    });
+    el.appendChild(btn);
+  }
+
+  // Select first
+  const first = Object.keys(images)[0];
+  curImageName = first;
+  curImage = images[first].data;
+  document.querySelector(`#img-btns .ds-btn[data-id="${first}"]`).classList.add('active');
+  runPipeline();
+}
+
+document.getElementById('btn-run').addEventListener('click', runPipeline);
+init();
+</script>
+</body>
+</html>
