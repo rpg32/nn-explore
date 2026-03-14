@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05.3 — Overfitting &amp; Regularization</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.85rem; line-height: 2.2; margin: 14px 0; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; min-width: 150px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .slider-row { display: flex; align-items: center; gap: 6px; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .sv { font-family: Consolas, monospace; font-size: 0.88rem; width: 48px; text-align: right; color: #fff; font-weight: 700; }
+  .run-btn { padding: 10px 20px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+  .run-btn:hover { background: rgba(79,195,247,0.1); }
+
+  .triple { display: flex; gap: 14px; margin-bottom: 16px; }
+  .panel { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; text-align: center; }
+  .panel h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+  .panel .meta { font-size: 0.75rem; color: #666; margin-bottom: 6px; font-family: Consolas, monospace; }
+  .panel canvas { display: block; margin: 0 auto; border-radius: 6px; }
+  .panel .stats { display: flex; gap: 6px; margin-top: 8px; justify-content: center; }
+  .panel .stat { text-align: center; flex: 1; }
+  .panel .stat .lbl { font-size: 0.62rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .panel .stat .val { font-family: Consolas, monospace; font-size: 0.82rem; font-weight: 700; }
+
+  .show-toggle { display: flex; gap: 8px; margin-bottom: 12px; justify-content: center; }
+  .tog-btn { padding: 5px 14px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.78rem; cursor: pointer; }
+  .tog-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+
+  .chart-row { display: flex; gap: 16px; margin-bottom: 20px; }
+  .chart-card { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; }
+  .chart-card h3 { font-size: 0.9rem; color: #fff; margin-bottom: 6px; }
+  .chart-card canvas { display: block; border-radius: 6px; width: 100%; }
+
+  .legend-row { display: flex; gap: 14px; justify-content: center; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; font-family: Consolas, monospace; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-line { width: 16px; height: 2px; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  @media (max-width: 900px) { .triple, .chart-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 05 &middot; Training Techniques</div>
+  <h1>Overfitting &amp; Regularization</h1>
+  <p class="subtitle">When your network memorizes noise instead of learning patterns — and how to stop it</p>
+
+  <div class="card">
+    <p><strong>The setup:</strong> 80 noisy training points (small, easy to memorize) and 200 cleaner test points (to check generalization).
+       A network with 32+16 hidden neurons — deliberately too powerful for 80 points.</p>
+    <div class="formula-box">
+      <span style="color:#ef5350">No Regularization:</span> network is free to memorize every noise point<br>
+      <span style="color:#ffb74d">L2 (Weight Decay):</span> loss += λ × Σw² &nbsp;— penalizes large weights, keeps boundary smooth<br>
+      <span style="color:#66bb6a">Dropout:</span> randomly zero out 50% of neurons each step — forces redundancy
+    </div>
+    <p>Watch the <strong>test loss</strong>: when it starts rising while train loss keeps falling, that's overfitting.</p>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Epochs</h3>
+      <div class="slider-row">
+        <input type="range" id="s-ep" min="50" max="500" step="50" value="200">
+        <span class="sv" id="v-ep">200</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>L2 Strength (λ)</h3>
+      <div class="slider-row">
+        <input type="range" id="s-l2" min="-4" max="-1" step="0.25" value="-2">
+        <span class="sv" id="v-l2">0.010</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Dropout Rate</h3>
+      <div class="slider-row">
+        <input type="range" id="s-do" min="0.1" max="0.8" step="0.05" value="0.5">
+        <span class="sv" id="v-do">0.50</span>
+      </div>
+    </div>
+    <button class="run-btn" id="btn-run">▶ Run Comparison</button>
+  </div>
+
+  <div class="show-toggle">
+    <button class="tog-btn active" data-show="train">Show Train Points</button>
+    <button class="tog-btn" data-show="test">Show Test Points</button>
+  </div>
+
+  <!-- Three decision boundary panels -->
+  <div class="triple">
+    <div class="panel">
+      <h3 style="color:#ef5350">No Regularization</h3>
+      <div class="meta">Unconstrained</div>
+      <canvas id="c-none" width="320" height="320"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Train Acc</div><div class="val" id="s-none-ta">--</div></div>
+        <div class="stat"><div class="lbl">Test Acc</div><div class="val" id="s-none-ea">--</div></div>
+        <div class="stat"><div class="lbl">Gap</div><div class="val" id="s-none-gap">--</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 style="color:#ffb74d">L2 Regularization</h3>
+      <div class="meta" id="meta-l2">λ = 0.010</div>
+      <canvas id="c-l2" width="320" height="320"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Train Acc</div><div class="val" id="s-l2-ta">--</div></div>
+        <div class="stat"><div class="lbl">Test Acc</div><div class="val" id="s-l2-ea">--</div></div>
+        <div class="stat"><div class="lbl">Gap</div><div class="val" id="s-l2-gap">--</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 style="color:#66bb6a">Dropout</h3>
+      <div class="meta" id="meta-do">rate = 0.50</div>
+      <canvas id="c-dropout" width="320" height="320"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Train Acc</div><div class="val" id="s-do-ta">--</div></div>
+        <div class="stat"><div class="lbl">Test Acc</div><div class="val" id="s-do-ea">--</div></div>
+        <div class="stat"><div class="lbl">Gap</div><div class="val" id="s-do-gap">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <h3>Loss — Train (solid) vs Test (dashed)</h3>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div>None</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ffb74d"></div>L2</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#66bb6a"></div>Dropout</div>
+      </div>
+      <canvas id="loss-chart" width="1140" height="280"></canvas>
+    </div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Run with defaults (200 epochs).</strong> Look at the "No Reg" boundary — it's wildly complex, tracing every noise point. Now look at L2 and Dropout — much smoother. Check the test accuracy: regularized networks score higher on NEW data.</li>
+      <li><strong>Watch the loss chart.</strong> The red dashed line (no-reg test loss) goes UP after a while — classic overfitting. The network is getting WORSE on new data even as it perfects the training data.</li>
+      <li><strong>The "Gap" stat</strong> shows train_acc - test_acc. A large gap = overfitting. No-reg has the biggest gap. Regularized networks keep the gap small.</li>
+      <li><strong>Toggle to "Show Test Points"</strong> — see how the overfit boundary makes wrong predictions on new data, especially near the noisy training points.</li>
+      <li><strong>Crank epochs to 500.</strong> No-reg overfits even more. L2 and Dropout stay stable — they've found the "true" boundary.</li>
+      <li><strong>Set L2 λ too high (0.1).</strong> Now it UNDERFITS — the penalty is so strong the network can't learn the curve at all. Too much regularization is also bad.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const COLS = { none: '#ef5350', l2: '#ffb74d', dropout: '#66bb6a' };
+const dpr = window.devicePixelRatio || 1;
+const RANGE = 2.5;
+let showPoints = 'train';
+let lastData = null;
+
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+
+const canvases = {
+  none: setupC('c-none', 320, 320),
+  l2: setupC('c-l2', 320, 320),
+  dropout: setupC('c-dropout', 320, 320),
+};
+const lossC = setupC('loss-chart', 1140, 280);
+
+function toP(v, sz) { return (v + RANGE) / (2 * RANGE) * sz; }
+
+function drawHeatmap(C, heatmap, points) {
+  const { ctx, w: SZ } = C;
+  ctx.clearRect(0, 0, SZ, SZ);
+  if (heatmap) {
+    const res = heatmap.length, cs = SZ / res;
+    for (let r = 0; r < res; r++) {
+      for (let c = 0; c < res; c++) {
+        const p = heatmap[res - 1 - r][c];
+        ctx.fillStyle = `rgb(${Math.round(255*(1-p)*0.4+15)},${Math.round(120+40*(2*p-1))},${Math.round(255*p*0.4+30)})`;
+        ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+      }
+    }
+    // Boundary
+    const res2 = heatmap.length;
+    for (let r = 0; r < res2 - 1; r++) {
+      for (let c = 0; c < res2 - 1; c++) {
+        const v = heatmap[res2 - 1 - r][c];
+        const vr = heatmap[res2 - 1 - r][c + 1];
+        const vb = (res2 - 2 - r >= 0) ? heatmap[res2 - 2 - r][c] : v;
+        if ((v >= 0.5) !== (vr >= 0.5) || (v >= 0.5) !== (vb >= 0.5)) {
+          ctx.fillStyle = '#ffffff50';
+          ctx.fillRect(c * cs, r * cs, cs, cs);
+        }
+      }
+    }
+  }
+  if (points) {
+    for (const p of points) {
+      const px = toP(p.x1, SZ), py = toP(-p.x2, SZ);
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = p.label === 'A' ? '#4fc3f7' : '#ffb74d'; ctx.fill();
+      ctx.strokeStyle = '#00000060'; ctx.lineWidth = 0.5; ctx.stroke();
+    }
+  }
+}
+
+function drawLossChart(results) {
+  const { ctx, w: W, h: H } = lossC;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 55, r: 10, t: 10, b: 24 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  // Collect all loss values
+  let allVals = [];
+  for (const name of ['none', 'l2', 'dropout']) {
+    allVals.push(...results[name].map(r => r.train_loss));
+    allVals.push(...results[name].map(r => r.test_loss));
+  }
+  // Cap for display
+  const maxY = Math.min(Math.max(...allVals) * 1.1, 2.0);
+  const maxX = results.none.length;
+
+  function gx(i) { return pad.l + (i / (maxX - 1)) * gw; }
+  function gy(v) { return pad.t + gh - (Math.min(v, maxY) / maxY) * gh; }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = pad.t + (gh / 5) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
+    ctx.fillText((maxY - maxY * i / 5).toFixed(2), pad.l - 4, y + 4);
+  }
+
+  // Draw lines
+  for (const name of ['none', 'l2', 'dropout']) {
+    const data = results[name];
+    const col = COLS[name];
+
+    // Train (solid)
+    ctx.beginPath(); ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+    ctx.setLineDash([]);
+    for (let i = 0; i < data.length; i++) {
+      const x = gx(i), y = gy(data[i].train_loss);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Test (dashed)
+    ctx.beginPath(); ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    for (let i = 0; i < data.length; i++) {
+      const x = gx(i), y = gy(data[i].test_loss);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Labels
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#666'; ctx.textAlign = 'center';
+  ctx.fillText('Epoch', pad.l + gw / 2, H - 4);
+  ctx.textAlign = 'left';
+  ctx.fillText('solid = train, dashed = test', pad.l + 4, pad.t + 12);
+}
+
+function updateDisplay() {
+  if (!lastData) return;
+  const pts = showPoints === 'train' ? lastData.train_points : lastData.test_points;
+  for (const name of ['none', 'l2', 'dropout']) {
+    drawHeatmap(canvases[name], lastData.heatmaps[name], pts);
+    const last = lastData.results[name][lastData.results[name].length - 1];
+    const idMap = { none: 'none', l2: 'l2', dropout: 'do' };
+    const sid = idMap[name];
+    const trainA = Math.round(last.train_acc * 100);
+    const testA = Math.round(last.test_acc * 100);
+    const gap = trainA - testA;
+    document.getElementById(`s-${sid}-ta`).textContent = trainA + '%';
+    document.getElementById(`s-${sid}-ea`).textContent = testA + '%';
+    document.getElementById(`s-${sid}-ea`).style.color = testA >= 85 ? '#66bb6a' : testA >= 70 ? '#ffb74d' : '#ef5350';
+    document.getElementById(`s-${sid}-gap`).textContent = gap + '%';
+    document.getElementById(`s-${sid}-gap`).style.color = gap <= 5 ? '#66bb6a' : gap <= 15 ? '#ffb74d' : '#ef5350';
+  }
+  drawLossChart(lastData.results);
+}
+
+// Sliders
+document.getElementById('s-ep').addEventListener('input', () => {
+  document.getElementById('v-ep').textContent = document.getElementById('s-ep').value;
+});
+document.getElementById('s-l2').addEventListener('input', () => {
+  const v = Math.pow(10, parseFloat(document.getElementById('s-l2').value));
+  document.getElementById('v-l2').textContent = v.toFixed(3);
+  document.getElementById('meta-l2').textContent = `λ = ${v.toFixed(3)}`;
+});
+document.getElementById('s-do').addEventListener('input', () => {
+  const v = parseFloat(document.getElementById('s-do').value);
+  document.getElementById('v-do').textContent = v.toFixed(2);
+  document.getElementById('meta-do').textContent = `rate = ${v.toFixed(2)}`;
+});
+
+// Toggle train/test
+document.querySelectorAll('.tog-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tog-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showPoints = btn.dataset.show;
+    updateDisplay();
+  });
+});
+
+document.getElementById('btn-run').addEventListener('click', runComparison);
+
+async function runComparison() {
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '⏳ Training...'; btn.disabled = true;
+  try {
+    const resp = await fetch('api/compare', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        epochs: parseInt(document.getElementById('s-ep').value),
+        l2_lambda: Math.pow(10, parseFloat(document.getElementById('s-l2').value)),
+        dropout_rate: parseFloat(document.getElementById('s-do').value),
+      }),
+    });
+    lastData = await resp.json();
+    updateDisplay();
+  } finally {
+    btn.textContent = '▶ Run Comparison'; btn.disabled = false;
+  }
+}
+
+runComparison();
+</script>
+</body>
+</html>

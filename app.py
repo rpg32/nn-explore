@@ -164,6 +164,17 @@ MODULES = [
         'path': '05-training-techniques/02-optimizers',
         'status': 'ready',
     },
+    {
+        'id': '05-3',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '05',
+        'group_name': 'Training Techniques',
+        'title': 'Overfitting & Regularization',
+        'desc': 'When your network memorizes noise — and how L2 and Dropout fix it.',
+        'path': '05-training-techniques/03-regularization',
+        'status': 'ready',
+    },
 ]
 
 
@@ -590,6 +601,24 @@ def m05_2_nn_compare():
     return jsonify(nn['05-2'].nn_comparison(
         epochs=int(data.get('epochs', 50)),
         lr=float(data.get('lr', 0.5)),
+    ))
+
+
+# =============================================================
+# MODULE 05-3: Overfitting & Regularization
+# =============================================================
+@app.route('/05-3/')
+def m05_3_page():
+    return send_file(os.path.join(BASE, '05-training-techniques/03-regularization/templates/index.html'))
+
+@app.route('/05-3/api/compare', methods=['POST'])
+def m05_3_compare():
+    data = request.json
+    return jsonify(nn['05-3'].train_comparison(
+        epochs=int(data.get('epochs', 200)),
+        lr=float(data.get('lr', 0.5)),
+        l2_lambda=float(data.get('l2_lambda', 0.01)),
+        dropout_rate=float(data.get('dropout_rate', 0.5)),
     ))
 
 
