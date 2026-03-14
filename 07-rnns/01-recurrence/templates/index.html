@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07 — RNNs</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; color: #fff; margin: 24px 0 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.85rem; line-height: 2.2; margin: 14px 0; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ds-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.76rem; cursor: pointer; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .text-input { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 6px; color: #e0e0e0; font-family: Consolas, monospace; font-size: 0.9rem; padding: 8px 12px; width: 240px; }
+  .run-btn { padding: 10px 20px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+
+  /* Sequence visualization */
+  .seq-vis { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; margin-bottom: 20px; overflow-x: auto; }
+  .seq-timeline { display: flex; gap: 2px; min-width: fit-content; }
+  .seq-step { width: 72px; min-width: 72px; text-align: center; cursor: pointer; padding: 4px 2px; border-radius: 6px; transition: background 0.15s; }
+  .seq-step:hover, .seq-step.active { background: rgba(79,195,247,0.1); }
+  .seq-char { font-family: Consolas, monospace; font-size: 1.4rem; font-weight: 700; color: #4fc3f7; height: 36px; display: flex; align-items: center; justify-content: center; background: #0d0d20; border-radius: 4px; margin-bottom: 4px; }
+  .seq-arrow { color: #333; font-size: 0.7rem; margin-bottom: 4px; }
+  .seq-hidden { height: 40px; display: flex; gap: 1px; justify-content: center; align-items: flex-end; margin-bottom: 4px; }
+  .seq-hbar { width: 4px; border-radius: 1px; }
+  .seq-hmag { font-family: Consolas, monospace; font-size: 0.65rem; color: #666; }
+
+  /* Step detail */
+  .step-detail { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .step-detail h3 { font-size: 0.9rem; color: #fff; margin-bottom: 12px; }
+  .detail-grid { display: flex; gap: 20px; flex-wrap: wrap; }
+  .detail-card { flex: 1; min-width: 200px; background: #0d0d20; border-radius: 8px; padding: 14px; }
+  .detail-card h4 { font-size: 0.78rem; color: #9e9e9e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .hidden-heatmap { display: flex; gap: 1px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+  .h-cell { width: 20px; height: 20px; border-radius: 2px; }
+  .pred-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .pred-char { font-family: Consolas, monospace; font-size: 1rem; font-weight: 700; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #111128; border-radius: 4px; }
+  .pred-bar-bg { flex: 1; height: 14px; background: #111128; border-radius: 3px; overflow: hidden; }
+  .pred-bar { height: 100%; border-radius: 3px; }
+  .pred-pct { font-family: Consolas, monospace; font-size: 0.75rem; color: #888; width: 40px; text-align: right; }
+
+  /* Gradient flow chart */
+  .chart-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 0.9rem; color: #fff; margin-bottom: 8px; }
+  .chart-card canvas { display: block; border-radius: 6px; width: 100%; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 07 &middot; Sequential Processing</div>
+  <h1>Recurrent Neural Networks</h1>
+  <p class="subtitle">Processing sequences one element at a time, carrying memory in a hidden state</p>
+
+  <div class="card">
+    <p>An RNN processes a sequence one element at a time. At each step, it takes the current input AND
+      the previous hidden state, combines them, and produces a new hidden state. The hidden state is the
+      network's <strong>memory</strong> — a compressed summary of everything it has seen so far.</p>
+    <div class="formula-box">
+      h[t] = tanh(<span style="color:#ffb74d">W_h</span> @ h[t-1] + <span style="color:#4fc3f7">W_x</span> @ x[t] + b)<br>
+      <span style="color:#666">Same weights <span style="color:#ffb74d">W_h</span> and <span style="color:#4fc3f7">W_x</span> reused at EVERY time step — weight sharing across time</span>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Example Texts</h3>
+      <div class="ds-btns" id="text-btns">
+        <button class="ds-btn active" data-text="hello">hello</button>
+        <button class="ds-btn" data-text="the cat sat">the cat sat.</button>
+        <button class="ds-btn" data-text="abcabc">abcabcabc</button>
+        <button class="ds-btn" data-text="pattern">aababaab</button>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Custom Text</h3>
+      <input type="text" class="text-input" id="custom-text" placeholder="Type anything..." maxlength="40">
+    </div>
+    <button class="run-btn" id="btn-run">Process</button>
+  </div>
+
+  <h2>Sequence Flow — Click a step to inspect</h2>
+  <div class="seq-vis">
+    <div class="seq-timeline" id="timeline"></div>
+  </div>
+
+  <div class="step-detail" id="step-detail" style="display:none">
+    <h3 id="detail-title">Step Detail</h3>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Hidden State (memory)</h4>
+        <p style="font-size:0.8rem;color:#888" id="hidden-info"></p>
+        <div class="hidden-heatmap" id="hidden-heatmap"></div>
+      </div>
+      <div class="detail-card">
+        <h4>Predicted Next Character</h4>
+        <p style="font-size:0.8rem;color:#888">What the (untrained) network guesses comes next</p>
+        <div id="predictions"></div>
+      </div>
+      <div class="detail-card">
+        <h4>How Memory Evolves</h4>
+        <p style="font-size:0.8rem;color:#888">Each new character changes the hidden state</p>
+        <canvas id="memory-chart" width="320" height="160"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <h2>Vanishing Gradient Through Time</h2>
+  <div class="chart-card">
+    <h3>Gradient strength flowing backward from the last step</h3>
+    <p style="font-size:0.82rem;color:#888;margin-bottom:8px">
+      Just like deep layers (Module 03.3), gradients weaken as they flow backward through many time steps.
+      Step 30 has full gradient. Step 1's gradient has been multiplied through 29 tanh activations — nearly zero.
+      This is why basic RNNs can't learn long-range dependencies. LSTMs fix this with a gradient highway.
+    </p>
+    <canvas id="grad-chart" width="1140" height="220"></canvas>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Process "hello".</strong> Click each step. Watch the hidden state (the colored grid) change as each character is processed. After 'h', the memory encodes 'h'. After 'he', it encodes a mix of both. By 'hello', it carries information about the whole word.</li>
+      <li><strong>Try "abcabcabc".</strong> Notice the hidden states become PERIODIC — the memory pattern at 'a' repeats every 3 characters because the input repeats. The RNN has discovered the pattern.</li>
+      <li><strong>Try "the cat sat."</strong> More characters = more information compressed into the same-size hidden state. The network has to decide what to remember and what to forget.</li>
+      <li><strong>Look at the gradient chart.</strong> This is Module 03.3 (vanishing gradients) happening across time instead of across layers. The network can barely update its weights based on early characters — it effectively "forgets" them.</li>
+      <li><strong>The predictions are random</strong> because this network is untrained. In a trained RNN, after seeing "hell", it would predict "o" with high probability.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+let currentData = null;
+let activeStep = -1;
+
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+const gradC = setupC('grad-chart', 1140, 220);
+
+function getText() {
+  const custom = document.getElementById('custom-text').value.trim();
+  if (custom) return custom;
+  const active = document.querySelector('#text-btns .ds-btn.active');
+  return active ? active.dataset.text : 'hello';
+}
+
+document.querySelectorAll('#text-btns .ds-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#text-btns .ds-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('custom-text').value = '';
+    runProcess();
+  });
+});
+
+document.getElementById('custom-text').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { runProcess(); }
+});
+document.getElementById('btn-run').addEventListener('click', runProcess);
+
+function renderTimeline(data) {
+  const el = document.getElementById('timeline');
+  let html = '';
+
+  // Initial state (h0 = zeros)
+  html += `<div class="seq-step" data-step="-1">
+    <div class="seq-char" style="background:transparent;color:#333;font-size:0.7rem">h0=0</div>
+    <div class="seq-arrow">start</div>
+    <div class="seq-hidden">`;
+  for (let i = 0; i < Math.min(data.hidden_size, 8); i++) {
+    html += `<div class="seq-hbar" style="height:1px;background:#333"></div>`;
+  }
+  html += `</div><div class="seq-hmag">|h|=0</div></div>`;
+
+  for (const step of data.steps) {
+    const mag = step.hidden_magnitude;
+    html += `<div class="seq-step" data-step="${step.step}">
+      <div class="seq-char">${step.char === ' ' ? '&nbsp;' : step.char}</div>
+      <div class="seq-arrow">step ${step.step + 1}</div>
+      <div class="seq-hidden">`;
+
+    // Mini bar chart of hidden state
+    const h = step.hidden;
+    const maxH = Math.max(...h.map(Math.abs), 0.01);
+    for (let i = 0; i < Math.min(h.length, 8); i++) {
+      const v = h[i];
+      const height = Math.round(Math.abs(v) / maxH * 36) + 2;
+      const color = v >= 0 ? `rgba(79,195,247,${Math.abs(v)/maxH*0.8+0.2})` : `rgba(239,83,80,${Math.abs(v)/maxH*0.8+0.2})`;
+      html += `<div class="seq-hbar" style="height:${height}px;background:${color}"></div>`;
+    }
+    html += `</div><div class="seq-hmag">|h|=${mag.toFixed(2)}</div></div>`;
+  }
+
+  el.innerHTML = html;
+
+  // Click handlers
+  el.querySelectorAll('.seq-step').forEach(step => {
+    step.addEventListener('click', () => {
+      const idx = parseInt(step.dataset.step);
+      selectStep(idx);
+    });
+  });
+}
+
+function selectStep(idx) {
+  activeStep = idx;
+  document.querySelectorAll('.seq-step').forEach(s => s.classList.toggle('active', parseInt(s.dataset.step) === idx));
+
+  if (idx < 0 || !currentData) {
+    document.getElementById('step-detail').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('step-detail').style.display = '';
+  const step = currentData.steps[idx];
+
+  document.getElementById('detail-title').textContent =
+    `Step ${idx + 1}: Processing '${step.char}'`;
+
+  // Hidden state heatmap
+  document.getElementById('hidden-info').textContent =
+    `${currentData.hidden_size} values — magnitude: ${step.hidden_magnitude.toFixed(3)}`;
+
+  const hm = document.getElementById('hidden-heatmap');
+  const h = step.hidden;
+  const maxH = Math.max(...h.map(Math.abs), 0.01);
+  hm.innerHTML = h.map(v => {
+    const t = Math.abs(v) / maxH;
+    let r, g, b;
+    if (v >= 0) { r = Math.round(30 + t * 30); g = Math.round(100 + t * 155); b = Math.round(180 + t * 75); }
+    else { r = Math.round(180 + t * 75); g = Math.round(50 + t * 30); b = Math.round(50 + t * 30); }
+    return `<div class="h-cell" style="background:rgb(${r},${g},${b})" title="${v.toFixed(3)}"></div>`;
+  }).join('');
+
+  // Predictions
+  const pred = document.getElementById('predictions');
+  pred.innerHTML = step.top3_predictions.map((p, i) => {
+    const pct = (p.prob * 100);
+    const color = i === 0 ? '#4fc3f7' : i === 1 ? '#ffb74d' : '#666';
+    return `<div class="pred-row">
+      <div class="pred-char" style="color:${color}">${p.char === ' ' ? '_' : p.char}</div>
+      <div class="pred-bar-bg"><div class="pred-bar" style="width:${pct}%;background:${color}"></div></div>
+      <div class="pred-pct">${pct.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+
+  // Memory evolution chart
+  drawMemoryChart(idx);
+}
+
+function drawMemoryChart(upToStep) {
+  const mc = setupC('memory-chart', 320, 160);
+  const { ctx, w: W, h: H } = mc;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 35, r: 5, t: 5, b: 20 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  const mags = currentData.steps.slice(0, upToStep + 1).map(s => s.hidden_magnitude);
+  if (mags.length < 1) return;
+  const maxM = Math.max(...mags, 0.01) * 1.2;
+
+  function gx(i) { return pad.l + (mags.length > 1 ? (i / (mags.length - 1)) * gw : gw / 2); }
+  function gy(v) { return pad.t + gh - (v / maxM) * gh; }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + gh); ctx.lineTo(pad.l + gw, pad.t + gh); ctx.stroke();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2;
+  for (let i = 0; i < mags.length; i++) {
+    i === 0 ? ctx.moveTo(gx(i), gy(mags[i])) : ctx.lineTo(gx(i), gy(mags[i]));
+  }
+  ctx.stroke();
+
+  // Dots with char labels
+  ctx.font = '700 10px Consolas'; ctx.textAlign = 'center';
+  for (let i = 0; i < mags.length; i++) {
+    ctx.beginPath(); ctx.arc(gx(i), gy(mags[i]), 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#4fc3f7'; ctx.fill();
+    ctx.fillStyle = '#888';
+    ctx.fillText(currentData.steps[i].char, gx(i), pad.t + gh + 14);
+  }
+
+  ctx.fillStyle = '#555'; ctx.font = '10px Consolas'; ctx.textAlign = 'left';
+  ctx.fillText('|h| magnitude', pad.l, pad.t + 10);
+}
+
+function drawGradientChart(data) {
+  const { ctx, w: W, h: H } = gradC;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 55, r: 10, t: 10, b: 30 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  const norms = data.gradient_norms_normalized;
+  const N = norms.length;
+  const maxY = 1.05;
+
+  function gx(i) { return pad.l + (i / (N - 1)) * gw; }
+  function gy(v) { return pad.t + gh - (v / maxY) * gh; }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (gh / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
+    ctx.fillText(((4 - i) / 4).toFixed(2), pad.l - 6, y + 4);
+  }
+
+  // Bars
+  const barW = Math.max(gw / N - 2, 3);
+  for (let i = 0; i < N; i++) {
+    const x = gx(i) - barW / 2;
+    const h = norms[i] * gh;
+    const t = norms[i];
+    const r = Math.round(239 * (1 - t) + 79 * t);
+    const g = Math.round(83 * (1 - t) + 195 * t);
+    const b = Math.round(80 * (1 - t) + 247 * t);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(x, pad.t + gh - h, barW, h);
+  }
+
+  // Labels
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#666'; ctx.textAlign = 'center';
+  for (let i = 0; i < N; i += Math.max(1, Math.floor(N / 15))) {
+    ctx.fillText(i + 1, gx(i), H - 6);
+  }
+  ctx.fillText('Time step (gradient flows backward: right to left)', pad.l + gw / 2, H - 6);
+  ctx.textAlign = 'left';
+  ctx.fillText('Gradient strength', pad.l, pad.t + 10);
+
+  // Arrow annotation
+  ctx.fillStyle = '#ef5350'; ctx.font = '700 11px Consolas';
+  ctx.textAlign = 'left'; ctx.fillText('Nearly zero', gx(0), gy(norms[0]) - 6);
+  ctx.fillStyle = '#66bb6a'; ctx.textAlign = 'right';
+  ctx.fillText('Full gradient', gx(N - 1), gy(norms[N - 1]) - 6);
+}
+
+async function runProcess() {
+  const text = getText();
+  const resp = await fetch('api/process', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, hidden_size: 16 }),
+  });
+  currentData = await resp.json();
+  renderTimeline(currentData);
+  selectStep(0);
+
+  // Gradient flow
+  const gradResp = await fetch('api/gradient_flow', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seq_length: Math.max(currentData.text.length, 20), hidden_size: 16 }),
+  });
+  drawGradientChart(await gradResp.json());
+}
+
+runProcess();
+</script>
+</body>
+</html>

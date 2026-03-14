@@ -208,6 +208,17 @@ MODULES = [
         'path': '06-cnns/02-building-a-cnn',
         'status': 'ready',
     },
+    {
+        'id': '07-1',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '07',
+        'group_name': 'RNNs',
+        'title': 'Recurrent Neural Networks',
+        'desc': 'Processing sequences one element at a time, carrying memory in a hidden state.',
+        'path': '07-rnns/01-recurrence',
+        'status': 'ready',
+    },
 ]
 
 
@@ -725,6 +736,30 @@ def m06_2_pipeline():
 def m06_2_pooling():
     data = request.json
     return jsonify(nn['06-2'].pooling_demo(data['image'], data.get('pool_mode', 'max')))
+
+
+# =============================================================
+# MODULE 07-1: RNNs
+# =============================================================
+@app.route('/07-1/')
+def m07_1_page():
+    return send_file(os.path.join(BASE, '07-rnns/01-recurrence/templates/index.html'))
+
+@app.route('/07-1/api/process', methods=['POST'])
+def m07_1_process():
+    data = request.json
+    return jsonify(nn['07-1'].process_text(
+        data.get('text', 'hello'),
+        hidden_size=int(data.get('hidden_size', 16)),
+    ))
+
+@app.route('/07-1/api/gradient_flow', methods=['POST'])
+def m07_1_gradient_flow():
+    data = request.json
+    return jsonify(nn['07-1'].gradient_flow_through_time(
+        seq_length=int(data.get('seq_length', 30)),
+        hidden_size=int(data.get('hidden_size', 16)),
+    ))
 
 
 # =============================================================
