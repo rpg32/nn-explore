@@ -142,6 +142,17 @@ MODULES = [
         'path': '04-multi-layer-networks/01-build-train-mlp',
         'status': 'ready',
     },
+    {
+        'id': '05-1',
+        'phase': 2,
+        'phase_name': 'Real Networks',
+        'group': '05',
+        'group_name': 'Training Techniques',
+        'title': 'Batch vs SGD',
+        'desc': 'Same network, same data, three ways to feed gradients — watch the difference.',
+        'path': '05-training-techniques/01-batch-vs-sgd',
+        'status': 'ready',
+    },
 ]
 
 
@@ -518,6 +529,32 @@ def m04_1_reset():
             result['heatmap'] = _mlp_04.predict_grid()
         return jsonify(result)
     return jsonify({})
+
+
+# =============================================================
+# MODULE 05-1: Batch vs SGD
+# =============================================================
+@app.route('/05-1/')
+def m05_1_page():
+    return send_file(os.path.join(BASE, '05-training-techniques/01-batch-vs-sgd/templates/index.html'))
+
+@app.route('/05-1/api/compare', methods=['POST'])
+def m05_1_compare():
+    data = request.json
+    return jsonify(nn['05-1'].train_comparison(
+        num_epochs=int(data.get('epochs', 30)),
+        lr=float(data.get('lr', 0.5)),
+        batch_size=int(data.get('batch_size', 16)),
+    ))
+
+@app.route('/05-1/api/traces', methods=['POST'])
+def m05_1_traces():
+    data = request.json
+    return jsonify(nn['05-1'].train_step_by_step(
+        total_epochs=int(data.get('epochs', 30)),
+        lr=float(data.get('lr', 0.5)),
+        batch_size=int(data.get('batch_size', 16)),
+    ))
 
 
 # =============================================================

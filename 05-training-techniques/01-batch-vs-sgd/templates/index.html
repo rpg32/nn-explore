@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05.1 — Batch vs SGD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card h3 { font-size: 1rem; color: #fff; margin-bottom: 10px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.88rem; line-height: 2; margin: 14px 0; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 160px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 8px; }
+  .slider-row { display: flex; align-items: center; gap: 6px; }
+  .sl { font-family: Consolas, monospace; font-size: 0.82rem; color: #9e9e9e; width: 55px; text-align: right; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: #2a2a4a; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #4fc3f7; cursor: pointer; }
+  .sv { font-family: Consolas, monospace; font-size: 0.9rem; width: 40px; text-align: right; color: #fff; font-weight: 700; }
+  .run-btn { padding: 10px 24px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+  .run-btn:hover { background: rgba(79,195,247,0.1); }
+
+  /* Three panels */
+  .triple { display: flex; gap: 16px; margin-bottom: 20px; }
+  .panel { flex: 1; background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px; text-align: center; }
+  .panel h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+  .panel .meta { font-size: 0.75rem; color: #666; margin-bottom: 8px; font-family: Consolas, monospace; }
+  .panel canvas { display: block; margin: 0 auto; border-radius: 6px; }
+  .panel .stats { display: flex; gap: 8px; margin-top: 8px; justify-content: center; }
+  .panel .stat { text-align: center; }
+  .panel .stat .lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+  .panel .stat .val { font-family: Consolas, monospace; font-size: 0.9rem; font-weight: 700; }
+
+  .chart-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+  .chart-card canvas { display: block; margin: 0 auto; border-radius: 6px; width: 100%; }
+
+  .legend { display: flex; gap: 16px; justify-content: center; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; font-family: Consolas, monospace; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 6px 0 6px 24px; position: relative; color: #c0c0d0; font-size: 0.9rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  @media (max-width: 900px) { .triple { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 05 &middot; Training Techniques</div>
+  <h1>Batch vs SGD</h1>
+  <p class="subtitle">Same network, same data, three ways to feed gradients — watch the difference</p>
+
+  <div class="card">
+    <div class="formula-box">
+      <span style="color:#ef5350">Full Batch:</span> gradient = avg over ALL 200 points → 1 update/epoch<br>
+      <span style="color:#ffb74d">Mini-Batch:</span> gradient = avg over B points → N/B updates/epoch<br>
+      <span style="color:#4fc3f7">Stochastic:</span> gradient = 1 point → N updates/epoch
+    </div>
+    <p>All three start from <strong>identical weights</strong>. Same data, same network [2→16→8→1 ReLU]. Only the batch size differs.
+      An <strong>epoch</strong> = one full pass through all data. More updates per epoch ≠ better — each update is noisier.</p>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Epochs</h3>
+      <div class="slider-row">
+        <input type="range" id="s-epochs" min="5" max="80" step="5" value="30">
+        <span class="sv" id="v-epochs">30</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Learning Rate</h3>
+      <div class="slider-row">
+        <input type="range" id="s-lr" min="-2" max="0.5" step="0.1" value="-0.3">
+        <span class="sv" id="v-lr">0.50</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <h3>Mini-Batch Size</h3>
+      <div class="slider-row">
+        <input type="range" id="s-bs" min="2" max="7" step="1" value="4">
+        <span class="sv" id="v-bs">16</span>
+      </div>
+    </div>
+    <button class="run-btn" id="btn-run">▶ Run Comparison</button>
+  </div>
+
+  <!-- Three decision boundary panels -->
+  <div class="triple">
+    <div class="panel" id="p-full">
+      <h3 style="color:#ef5350">Full Batch</h3>
+      <div class="meta">1 update per epoch</div>
+      <canvas id="c-full" width="300" height="300"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Loss</div><div class="val" id="s-full-loss">--</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val" id="s-full-acc">--</div></div>
+      </div>
+    </div>
+    <div class="panel" id="p-mini">
+      <h3 style="color:#ffb74d">Mini-Batch</h3>
+      <div class="meta" id="meta-mini">~12 updates per epoch</div>
+      <canvas id="c-mini" width="300" height="300"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Loss</div><div class="val" id="s-mini-loss">--</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val" id="s-mini-acc">--</div></div>
+      </div>
+    </div>
+    <div class="panel" id="p-sgd">
+      <h3 style="color:#4fc3f7">Stochastic (SGD)</h3>
+      <div class="meta">200 updates per epoch</div>
+      <canvas id="c-sgd" width="300" height="300"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="lbl">Loss</div><div class="val" id="s-sgd-loss">--</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val" id="s-sgd-acc">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loss curves -->
+  <div class="chart-card">
+    <h3>Loss per Epoch</h3>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div>Full Batch</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffb74d"></div>Mini-Batch</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4fc3f7"></div>SGD</div>
+    </div>
+    <canvas id="loss-chart" width="1140" height="240"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h3>Accuracy per Epoch</h3>
+    <canvas id="acc-chart" width="1140" height="240"></canvas>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Run with defaults (30 epochs).</strong> All three reach similar accuracy, but look at the loss curves — full batch is smooth, SGD is noisy, mini-batch is in between.</li>
+      <li><strong>Set epochs=5.</strong> SGD and mini-batch often converge faster because they make more weight updates per epoch. Full batch only gets 5 updates total!</li>
+      <li><strong>Increase learning rate to 1.0+.</strong> Full batch stays stable. SGD may diverge — the noisy gradients amplified by a large LR can blow up. Mini-batch handles it better than SGD.</li>
+      <li><strong>Change mini-batch size.</strong> Size 4 acts like SGD (noisy). Size 128 acts like full batch (smooth). Size 16-32 is the sweet spot most practitioners use.</li>
+      <li><strong>Why does everyone use mini-batch?</strong> Real datasets have millions of samples. Full batch is impossible — you can't fit it all in memory. SGD wastes GPU parallelism. Mini-batch (32-256) is the practical sweet spot.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const COL = { full: '#ef5350', mini: '#ffb74d', sgd: '#4fc3f7' };
+const RANGE = 3.5;
+const dpr = window.devicePixelRatio || 1;
+
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+
+const canvases = {
+  full: setupC('c-full', 300, 300),
+  mini: setupC('c-mini', 300, 300),
+  sgd:  setupC('c-sgd',  300, 300),
+};
+const lossC = setupC('loss-chart', 1140, 240);
+const accC = setupC('acc-chart', 1140, 240);
+
+function toP(v, sz) { return (v + RANGE) / (2 * RANGE) * sz; }
+
+function drawHeatmap(C, heatmap, points) {
+  const { ctx, w: SZ } = C;
+  ctx.clearRect(0, 0, SZ, SZ);
+  if (heatmap) {
+    const res = heatmap.length;
+    const cs = SZ / res;
+    for (let r = 0; r < res; r++) {
+      for (let c = 0; c < res; c++) {
+        const p = heatmap[res - 1 - r][c];
+        const red = Math.round(255 * (1 - p) * 0.4 + 15);
+        const grn = Math.round(120 + 40 * (2 * p - 1));
+        const blu = Math.round(255 * p * 0.4 + 30);
+        ctx.fillStyle = `rgb(${red},${grn},${blu})`;
+        ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+      }
+    }
+    // Boundary contour
+    ctx.strokeStyle = '#ffffff40'; ctx.lineWidth = 1;
+    for (let r = 0; r < res - 1; r++) {
+      for (let c = 0; c < res - 1; c++) {
+        const v = heatmap[res - 1 - r][c];
+        const vr = heatmap[res - 1 - r][c + 1];
+        const vb = heatmap[res - 2 - r] ? heatmap[res - 2 - r][c] : v;
+        if ((v >= 0.5) !== (vr >= 0.5) || (v >= 0.5) !== (vb >= 0.5)) {
+          ctx.fillStyle = '#ffffff50';
+          ctx.fillRect(c * cs, r * cs, cs, cs);
+        }
+      }
+    }
+  }
+  if (points) {
+    for (const p of points) {
+      const px = toP(p.x1, SZ), py = toP(-p.x2, SZ);
+      ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fillStyle = p.label === 'A' ? '#4fc3f7' : '#ffb74d'; ctx.fill();
+      ctx.strokeStyle = '#00000050'; ctx.lineWidth = 0.5; ctx.stroke();
+    }
+  }
+}
+
+function drawLineChart(C, datasets, yLabel, isPercent) {
+  const { ctx, w: W, h: H } = C;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 55, r: 10, t: 10, b: 28 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  // Collect all values
+  let allVals = [];
+  for (const ds of datasets) allVals.push(...ds.values);
+  if (allVals.length === 0) return;
+
+  let maxY = Math.max(...allVals) * 1.15;
+  let minY = isPercent ? 0 : Math.min(0, Math.min(...allVals));
+  if (isPercent) { maxY = Math.max(maxY, 1.02); }
+  const maxX = Math.max(...datasets.map(ds => ds.values.length));
+
+  function gx(i) { return pad.l + (i / (maxX - 1)) * gw; }
+  function gy(v) { return pad.t + gh - ((v - minY) / (maxY - minY)) * gh; }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  const nGrid = 5;
+  for (let i = 0; i <= nGrid; i++) {
+    const y = pad.t + (gh / nGrid) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    const val = maxY - (maxY - minY) * (i / nGrid);
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
+    ctx.fillText(isPercent ? (val * 100).toFixed(0) + '%' : val.toFixed(3), pad.l - 6, y + 4);
+  }
+
+  // X axis
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+  for (let e = 0; e < maxX; e += Math.max(1, Math.floor(maxX / 10))) {
+    ctx.fillText(e + 1, gx(e), pad.t + gh + 16);
+  }
+  ctx.fillText('Epoch', pad.l + gw / 2, H - 2);
+
+  // Lines
+  for (const ds of datasets) {
+    ctx.beginPath(); ctx.strokeStyle = ds.color; ctx.lineWidth = 2.5;
+    for (let i = 0; i < ds.values.length; i++) {
+      const x = gx(i), y = gy(ds.values[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // Dots
+    for (let i = 0; i < ds.values.length; i++) {
+      ctx.beginPath(); ctx.arc(gx(i), gy(ds.values[i]), 3, 0, Math.PI * 2);
+      ctx.fillStyle = ds.color; ctx.fill();
+    }
+  }
+}
+
+function getLR() { return Math.pow(10, parseFloat(document.getElementById('s-lr').value)); }
+function getBS() { return Math.pow(2, parseInt(document.getElementById('s-bs').value)); }
+
+document.getElementById('s-epochs').addEventListener('input', () => {
+  document.getElementById('v-epochs').textContent = document.getElementById('s-epochs').value;
+});
+document.getElementById('s-lr').addEventListener('input', () => {
+  document.getElementById('v-lr').textContent = getLR().toFixed(2);
+});
+document.getElementById('s-bs').addEventListener('input', () => {
+  const bs = getBS();
+  document.getElementById('v-bs').textContent = bs;
+  document.getElementById('meta-mini').textContent = `~${Math.ceil(200 / bs)} updates per epoch`;
+});
+
+document.getElementById('btn-run').addEventListener('click', runComparison);
+
+async function runComparison() {
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '⏳ Training...'; btn.disabled = true;
+
+  const params = {
+    epochs: parseInt(document.getElementById('s-epochs').value),
+    lr: getLR(),
+    batch_size: getBS(),
+  };
+
+  try {
+    const resp = await fetch('api/compare', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const data = await resp.json();
+
+    // Heatmaps
+    for (const mode of ['full', 'mini', 'sgd']) {
+      drawHeatmap(canvases[mode], data.heatmaps[mode], data.points);
+      const last = data.results[mode][data.results[mode].length - 1];
+      document.getElementById(`s-${mode}-loss`).textContent = last.loss.toFixed(4);
+      document.getElementById(`s-${mode}-loss`).style.color = last.loss < 0.2 ? '#66bb6a' : last.loss < 0.5 ? '#ffb74d' : '#ef5350';
+      const pct = Math.round(last.accuracy * 100);
+      document.getElementById(`s-${mode}-acc`).textContent = pct + '%';
+      document.getElementById(`s-${mode}-acc`).style.color = pct >= 90 ? '#66bb6a' : pct >= 70 ? '#ffb74d' : '#ef5350';
+    }
+
+    document.getElementById('meta-mini').textContent = `${data.updates_per_epoch.mini} updates per epoch`;
+
+    // Loss chart
+    drawLineChart(lossC, [
+      { values: data.results.full.map(r => r.loss), color: COL.full },
+      { values: data.results.mini.map(r => r.loss), color: COL.mini },
+      { values: data.results.sgd.map(r => r.loss),  color: COL.sgd },
+    ], 'Loss', false);
+
+    // Accuracy chart
+    drawLineChart(accC, [
+      { values: data.results.full.map(r => r.accuracy), color: COL.full },
+      { values: data.results.mini.map(r => r.accuracy), color: COL.mini },
+      { values: data.results.sgd.map(r => r.accuracy),  color: COL.sgd },
+    ], 'Accuracy', true);
+
+  } catch (err) {
+    console.error(err);
+  } finally {
+    btn.textContent = '▶ Run Comparison'; btn.disabled = false;
+  }
+}
+
+// Auto-run on load
+runComparison();
+</script>
+</body>
+</html>
