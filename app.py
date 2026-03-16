@@ -329,6 +329,17 @@ MODULES = [
         'path': '08-embeddings/02-dense-embeddings',
         'status': 'ready',
     },
+    {
+        'id': '08-3',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '08',
+        'group_name': 'Embeddings',
+        'title': 'Learning Embeddings',
+        'desc': 'Train Word2Vec from scratch — watch random vectors organize by meaning.',
+        'path': '08-embeddings/03-learning-embeddings',
+        'status': 'ready',
+    },
 ]
 
 
@@ -1084,6 +1095,27 @@ def m08_1_sparsity():
 @app.route('/08-1/api/vocab')
 def m08_1_vocab():
     return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
+
+
+# =============================================================
+# MODULE 08-3: Learning Embeddings
+# =============================================================
+@app.route('/08-3/')
+def m08_3_page():
+    return send_file(os.path.join(BASE, '08-embeddings/03-learning-embeddings/templates/index.html'))
+
+@app.route('/08-3/api/train', methods=['POST'])
+def m08_3_train():
+    data = request.json
+    return jsonify(nn['08-3'].train_embeddings(
+        epochs=int(data.get('epochs', 100)),
+        embed_dim=2,
+        lr=float(data.get('lr', 0.1)),
+    ))
+
+@app.route('/08-3/api/info')
+def m08_3_info():
+    return jsonify({'corpus': nn['08-3'].CORPUS[:500], 'vocab': nn['08-3'].VOCAB, 'vocab_size': len(nn['08-3'].VOCAB)})
 
 
 # =============================================================
