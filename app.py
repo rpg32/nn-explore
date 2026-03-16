@@ -672,10 +672,12 @@ def m04_3_page():
 @app.route('/04-3/api/fit', methods=['POST'])
 def m04_3_fit():
     data = request.json
+    max_n = int(data.get('max_neurons', 64))
+    neuron_counts = [n for n in [1, 2, 4, 8, 16, 32, 64] if n <= max_n]
     return jsonify(nn['04-3'].fit_with_increasing_neurons(
         data.get('function_name', 'sine'),
-        int(data.get('max_neurons', 64)),
-        int(data.get('epochs', 2000)),
+        neuron_counts=neuron_counts,
+        epochs=int(data.get('epochs', 2000)),
     ))
 
 
