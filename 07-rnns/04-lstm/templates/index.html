@@ -214,6 +214,13 @@
     </div>
   </div>
 
+  <!-- ===================== LSTM CELL DIAGRAM ===================== -->
+  <div class="card" style="padding:16px;">
+    <h3 style="margin-bottom:8px;">LSTM Cell — The Full Picture</h3>
+    <p style="font-size:0.85rem;color:#888;margin-bottom:10px;">Compare this to the basic RNN from Module 07.2. The RNN had one path: input + h_prev → tanh → h_new. The LSTM adds a second path (the cell state) that flows through with only multiply and add — the gradient highway.</p>
+    <canvas id="lstm-diagram" width="1060" height="520"></canvas>
+  </div>
+
   <!-- ===================== SECTION 2: GATE VISUALIZATION ===================== -->
   <div class="section">
     <h2><span class="section-num">2</span> Watch the Gates Work — Step Through Text</h2>
@@ -348,9 +355,188 @@
 </div>
 
 <script>
-const dpr = window.devicePixelRatio || 1;
-let currentData = null;
-let currentStep = -1;
+var dpr = window.devicePixelRatio || 1;
+var currentData = null;
+var currentStep = -1;
+
+// ============================
+// LSTM CELL DIAGRAM
+// ============================
+function drawLSTMDiagram() {
+  var c = document.getElementById('lstm-diagram');
+  var W = 1060, H = 520;
+  c.width = W * dpr; c.height = H * dpr;
+  c.style.width = W + 'px'; c.style.height = H + 'px';
+  var ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Layout
+  var cx = W / 2, cy = H / 2;
+
+  // === CELL STATE HIGHWAY (top) ===
+  var cellY = 80;
+  // Long horizontal line
+  ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(60, cellY); ctx.lineTo(W - 60, cellY); ctx.stroke();
+  // Arrow at right end
+  ctx.beginPath(); ctx.moveTo(W - 70, cellY - 8); ctx.lineTo(W - 58, cellY); ctx.lineTo(W - 70, cellY + 8); ctx.stroke();
+  // Label
+  ctx.font = '700 14px Consolas'; ctx.fillStyle = '#4fc3f7'; ctx.textAlign = 'left';
+  ctx.fillText('Cell State (c) — gradient highway', 70, cellY - 18);
+  ctx.font = '11px Consolas'; ctx.fillStyle = '#888';
+  ctx.fillText('Only multiply and add on this path — gradients flow through unchanged', 70, cellY - 4);
+  // c_prev label
+  ctx.font = '700 12px Consolas'; ctx.fillStyle = '#4fc3f7'; ctx.textAlign = 'center';
+  ctx.fillText('c_prev', 90, cellY + 22);
+  ctx.fillText('c_new', W - 90, cellY + 22);
+
+  // === HIDDEN STATE (bottom) ===
+  var hiddenY = 440;
+  ctx.strokeStyle = '#ce93d8'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(60, hiddenY); ctx.lineTo(W - 60, hiddenY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W - 70, hiddenY - 7); ctx.lineTo(W - 58, hiddenY); ctx.lineTo(W - 70, hiddenY + 7); ctx.stroke();
+  ctx.font = '700 14px Consolas'; ctx.fillStyle = '#ce93d8'; ctx.textAlign = 'left';
+  ctx.fillText('Hidden State (h) — output to next step', 70, hiddenY + 22);
+  ctx.font = '700 12px Consolas'; ctx.textAlign = 'center';
+  ctx.fillText('h_prev', 90, hiddenY - 10);
+  ctx.fillText('h_new', W - 90, hiddenY - 10);
+
+  // === INPUT ===
+  var inputY = 370;
+  ctx.font = '700 13px Consolas'; ctx.fillStyle = '#ffb74d'; ctx.textAlign = 'center';
+  ctx.fillText('input (x)', cx, inputY + 50);
+
+  // Arrow up from input
+  ctx.strokeStyle = '#ffb74d'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, inputY + 36); ctx.lineTo(cx, inputY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 5, inputY + 5); ctx.lineTo(cx, inputY); ctx.lineTo(cx + 5, inputY + 5); ctx.stroke();
+
+  // === GATE BOXES ===
+  function drawGateBox(x, y, w, h, label, sublabel, color, activation) {
+    // Box
+    ctx.fillStyle = '#0d0d20';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.fillRect(x - w/2, y - h/2, w, h);
+    ctx.strokeRect(x - w/2, y - h/2, w, h);
+    // Label
+    ctx.font = '700 12px Consolas'; ctx.fillStyle = color; ctx.textAlign = 'center';
+    ctx.fillText(label, x, y - 4);
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#888';
+    ctx.fillText(sublabel, x, y + 10);
+    ctx.font = '9px Consolas'; ctx.fillStyle = '#555';
+    ctx.fillText(activation, x, y + 22);
+  }
+
+  // Gate positions
+  var gateW = 130, gateH = 60;
+  var forgetX = 230, inputX = 430, candidateX = 530, outputX = 750;
+  var gateY = 260;
+
+  drawGateBox(forgetX, gateY, gateW, gateH, 'FORGET Gate', 'What to erase?', '#ef5350', 'sigmoid → 0-1');
+  drawGateBox(inputX, gateY, 100, gateH, 'INPUT Gate', 'How much to add?', '#66bb6a', 'sigmoid → 0-1');
+  drawGateBox(candidateX + 40, gateY, 110, gateH, 'Candidate', 'What to add?', '#66bb6a', 'tanh → -1 to 1');
+  drawGateBox(outputX, gateY, gateW, gateH, 'OUTPUT Gate', 'What to expose?', '#ffb74d', 'sigmoid → 0-1');
+
+  // === OPERATIONS ON CELL STATE ===
+  function drawCircleOp(x, y, symbol, color) {
+    ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d20'; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = '700 16px Consolas'; ctx.fillStyle = color; ctx.textAlign = 'center';
+    ctx.fillText(symbol, x, y + 6);
+  }
+
+  // Multiply (forget gate * cell state)
+  var multX = forgetX, multY = cellY + 50;
+  drawCircleOp(multX, multY, '\u00D7', '#ef5350');
+
+  // Add (input * candidate + cell state)
+  var addX = (inputX + candidateX + 40) / 2, addY = cellY + 50;
+  drawCircleOp(addX, addY, '+', '#66bb6a');
+
+  // Multiply (output gate * tanh(cell))
+  var outMultX = outputX, outMultY = cellY + 50;
+  drawCircleOp(outMultX, outMultY, '\u00D7', '#ffb74d');
+
+  // === CONNECTIONS ===
+  ctx.lineWidth = 1.5;
+
+  // Cell state → forget multiply
+  ctx.strokeStyle = '#4fc3f7';
+  ctx.beginPath(); ctx.moveTo(multX, cellY); ctx.lineTo(multX, multY - 16); ctx.stroke();
+
+  // Forget multiply → onward cell
+  ctx.beginPath(); ctx.moveTo(multX + 16, multY); ctx.lineTo(addX - 16, addY); ctx.stroke();
+
+  // Add → onward cell
+  ctx.strokeStyle = '#4fc3f7';
+  ctx.beginPath(); ctx.moveTo(addX, addY - 16); ctx.lineTo(addX, cellY); ctx.stroke();
+
+  // Cell continues to output mult
+  ctx.beginPath(); ctx.moveTo(addX + 16, cellY); ctx.lineTo(outMultX, cellY); ctx.stroke();
+
+  // Cell → tanh → output mult
+  ctx.strokeStyle = '#ffb74d';
+  ctx.beginPath(); ctx.moveTo(outMultX, cellY); ctx.lineTo(outMultX, outMultY - 16); ctx.stroke();
+
+  // Output mult → hidden state
+  ctx.strokeStyle = '#ce93d8';
+  ctx.beginPath(); ctx.moveTo(outMultX, outMultY + 16); ctx.lineTo(outMultX, hiddenY); ctx.stroke();
+
+  // Forget gate → multiply
+  ctx.strokeStyle = '#ef5350'; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(forgetX, gateY - 30); ctx.lineTo(forgetX, multY + 16); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Input gate → add
+  ctx.strokeStyle = '#66bb6a'; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(inputX, gateY - 30); ctx.lineTo(addX - 10, addY + 16); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Candidate → add
+  ctx.strokeStyle = '#66bb6a'; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(candidateX + 40, gateY - 30); ctx.lineTo(addX + 10, addY + 16); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Output gate → output multiply
+  ctx.strokeStyle = '#ffb74d'; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(outputX, gateY - 30); ctx.lineTo(outputX, outMultY + 16); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // h_prev feeds into all gates (from bottom)
+  ctx.strokeStyle = '#ce93d880'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+  var feedY = gateY + 30;
+  ctx.beginPath(); ctx.moveTo(120, hiddenY); ctx.lineTo(120, feedY);
+  ctx.lineTo(outputX + 60, feedY); ctx.stroke();
+  // Vertical taps up to each gate
+  var gates = [forgetX, inputX, candidateX + 40, outputX];
+  for (var g = 0; g < gates.length; g++) {
+    ctx.beginPath(); ctx.moveTo(gates[g], feedY); ctx.lineTo(gates[g], gateY + 30); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Input feeds into all gates too
+  ctx.strokeStyle = '#ffb74d80'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+  var inputFeedY = feedY + 20;
+  ctx.beginPath(); ctx.moveTo(cx, inputY); ctx.lineTo(cx, inputFeedY);
+  ctx.lineTo(forgetX - 60, inputFeedY); ctx.lineTo(forgetX - 60, gateY + 30);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // === ANNOTATIONS ===
+  ctx.font = '11px Segoe UI'; ctx.fillStyle = '#666'; ctx.textAlign = 'left';
+  ctx.fillText('Each gate is just: sigmoid(W \u00D7 [h_prev, input] + bias)', 70, H - 30);
+  ctx.fillText('All 4 boxes are regular neuron layers — same math as Module 01', 70, H - 14);
+
+  // Key annotation: gradient path
+  ctx.strokeStyle = '#4fc3f722'; ctx.lineWidth = 30;
+  ctx.beginPath(); ctx.moveTo(80, cellY); ctx.lineTo(W - 80, cellY); ctx.stroke();
+  ctx.font = '700 11px Consolas'; ctx.fillStyle = '#4fc3f7'; ctx.textAlign = 'right';
+  ctx.fillText('GRADIENT HIGHWAY: c_new = f \u00D7 c_prev + i \u00D7 candidate (just multiply + add)', W - 70, cellY + 44);
+}
+
+drawLSTMDiagram();
 
 // ============================
 // CONTROLS
