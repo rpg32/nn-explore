@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07.1 — Why Sequences Are Special</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.25rem; color: #fff; margin-bottom: 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 24px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .card p:last-child { margin-bottom: 0; }
+
+  .section { margin-bottom: 32px; }
+  .section-num { display: inline-block; background: rgba(79,195,247,0.12); color: #4fc3f7; width: 28px; height: 28px; text-align: center; line-height: 28px; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 8px; }
+
+  /* Pair comparison cards */
+  .pair-grid { display: flex; flex-direction: column; gap: 16px; }
+  .pair-card { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px 20px; }
+  .pair-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.2px; color: #9e9e9e; margin-bottom: 10px; font-weight: 600; }
+  .pair-row { display: flex; gap: 16px; margin-bottom: 10px; }
+  .pair-side { flex: 1; background: #111128; border-radius: 8px; padding: 12px 16px; }
+  .pair-sentence { font-family: Consolas, monospace; font-size: 1.05rem; color: #fff; margin-bottom: 4px; }
+  .pair-meaning { font-size: 0.82rem; color: #888; font-style: italic; }
+  .pair-verdict { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+  .pair-verdict.identical { background: rgba(239,83,80,0.12); color: #ef5350; border: 1px solid rgba(239,83,80,0.3); }
+  .pair-verdict .verdict-icon { font-size: 1.1rem; }
+
+  /* Vector display */
+  .vec-row { display: flex; gap: 3px; flex-wrap: wrap; margin: 6px 0; justify-content: center; }
+  .vec-cell { width: 36px; height: 26px; display: flex; align-items: center; justify-content: center; font-family: Consolas, monospace; font-size: 0.68rem; border-radius: 3px; }
+
+  /* Bag of words visual */
+  .bow-visual { display: flex; align-items: center; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 12px 0; padding: 12px; background: #0a0a18; border-radius: 8px; }
+  .bow-word { padding: 6px 14px; border-radius: 6px; font-family: Consolas, monospace; font-size: 0.9rem; font-weight: 600; }
+  .bow-op { font-size: 1.2rem; color: #555; font-weight: 700; }
+  .bow-result { padding: 8px 16px; border-radius: 6px; font-family: Consolas, monospace; font-size: 0.85rem; font-weight: 700; }
+
+  /* Interactive compare */
+  .compare-box { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .compare-inputs { display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .input-group label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.2px; color: #9e9e9e; font-weight: 600; }
+  .text-input { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 6px; color: #e0e0e0; font-family: Consolas, monospace; font-size: 0.9rem; padding: 8px 12px; width: 260px; }
+  .text-input:focus { border-color: #4fc3f7; outline: none; }
+  .compare-btn { padding: 8px 20px; border-radius: 6px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+  .compare-btn:hover { background: rgba(79,195,247,0.1); }
+  .compare-result { padding: 14px; background: #0d0d20; border-radius: 8px; min-height: 60px; }
+  .compare-result .match-label { font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; }
+  .compare-result .match-label.same { color: #ef5350; }
+  .compare-result .match-label.diff { color: #66bb6a; }
+  .compare-detail { font-family: Consolas, monospace; font-size: 0.8rem; color: #888; }
+  .word-list { font-size: 0.82rem; color: #9e9e9e; margin-top: 6px; }
+  .word-list em { color: #4fc3f7; font-style: normal; }
+
+  /* Time series */
+  .ts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  .ts-card { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 10px; padding: 14px 16px; }
+  .ts-card h4 { font-size: 0.9rem; color: #fff; margin-bottom: 4px; }
+  .ts-card .ts-desc { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
+  .ts-card canvas { display: block; width: 100%; height: 80px; border-radius: 4px; }
+  .ts-stats { display: flex; gap: 16px; margin-top: 8px; font-family: Consolas, monospace; font-size: 0.75rem; color: #666; }
+  .ts-stats span { color: #9e9e9e; }
+
+  .ts-insight { background: rgba(239,83,80,0.08); border: 1px solid rgba(239,83,80,0.2); border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+  .ts-insight p { font-size: 0.88rem; color: #ef5350; font-weight: 600; margin: 0; }
+
+  /* Preview / what we need */
+  .preview-card { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+  .preview-card h4 { font-size: 0.9rem; color: #66bb6a; margin-bottom: 8px; }
+  .preview-card p { font-size: 0.88rem; color: #c0c0d0; margin-bottom: 6px; }
+  .preview-card .mono { font-family: Consolas, monospace; font-size: 0.82rem; color: #4fc3f7; line-height: 1.8; }
+
+  .rnn-flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 14px 0; }
+  .rnn-step { background: #111128; border: 1px solid #2a2a4a; border-radius: 8px; padding: 8px 14px; text-align: center; }
+  .rnn-step .rnn-label { font-size: 0.7rem; color: #888; }
+  .rnn-step .rnn-word { font-family: Consolas, monospace; font-size: 0.95rem; color: #4fc3f7; font-weight: 700; }
+  .rnn-arrow { color: #4fc3f7; font-size: 1.2rem; }
+  .rnn-mem { font-size: 0.65rem; color: #66bb6a; margin-top: 2px; }
+
+  /* Key insight banner */
+  .insight-banner { background: linear-gradient(135deg, rgba(79,195,247,0.1), rgba(102,187,106,0.1)); border: 1px solid rgba(79,195,247,0.3); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; text-align: center; }
+  .insight-banner p { font-size: 1.05rem; color: #e0e0e0; font-weight: 600; margin: 0; line-height: 1.7; }
+  .insight-banner .hl { color: #4fc3f7; }
+  .insight-banner .hl2 { color: #ffb74d; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  @media (max-width: 700px) {
+    .pair-row { flex-direction: column; }
+    .compare-inputs { flex-direction: column; }
+    .text-input { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 07 &middot; RNNs</div>
+  <h1>Why Sequences Are Special</h1>
+  <p class="subtitle">An MLP sees all inputs at once with no sense of order. For language, music, and time series — order is everything.</p>
+
+  <!-- ===================== SECTION 1: ORDER MATTERS ===================== -->
+  <div class="section">
+    <h2><span class="section-num">1</span> Order Matters</h2>
+    <div class="card">
+      <p>Consider these two sentences — they use the <strong>exact same words</strong>, just in different order:</p>
+    </div>
+    <div class="pair-grid" id="pair-grid">
+      <div style="color:#555; font-size:0.85rem; text-align:center; padding:30px;">Loading experiment results...</div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 2: BAG OF WORDS PROBLEM ===================== -->
+  <div class="section">
+    <h2><span class="section-num">2</span> The Bag-of-Words Problem</h2>
+    <div class="card">
+      <p>When an MLP processes a sentence, it typically <strong>sums</strong> or <strong>averages</strong> the word vectors.
+        This is called a "bag of words" — like dumping the words into a bag and shaking them up.</p>
+      <p>Since addition is commutative (<code>a + b = b + a</code>), rearranging the words
+        gives the <strong>exact same sum</strong>. The MLP literally cannot tell the difference.</p>
+    </div>
+
+    <div id="bow-demo"></div>
+
+    <div class="compare-box">
+      <h2 style="margin-top:0">Try It Yourself</h2>
+      <p style="font-size:0.88rem; color:#888; margin-bottom:14px;">
+        Enter two sentences using the same words in different order.
+        Watch the MLP produce identical outputs.
+        <br><span class="word-list">Available words: <em>dog, bites, man, cat, chases, mouse, not, good, very, bad, the, a, hot, cold, warm, is, was, big, small</em></span>
+      </p>
+      <div class="compare-inputs">
+        <div class="input-group">
+          <label>Sentence A</label>
+          <input type="text" class="text-input" id="input-a" value="dog bites man" spellcheck="false">
+        </div>
+        <div class="input-group">
+          <label>Sentence B</label>
+          <input type="text" class="text-input" id="input-b" value="man bites dog" spellcheck="false">
+        </div>
+        <button class="compare-btn" id="btn-compare">Compare →</button>
+      </div>
+      <div class="compare-result" id="compare-result">
+        <div style="color:#555; font-size:0.85rem;">Click "Compare" to see the results</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 3: TIME SERIES ===================== -->
+  <div class="section">
+    <h2><span class="section-num">3</span> Time Series: The Pattern Is the Order</h2>
+    <div class="card">
+      <p>The problem isn't limited to language. In any <strong>time series</strong>, the signal is encoded in the
+        ordering of values. A single snapshot tells you the value — but not the <em>trend</em>.</p>
+      <p>These five patterns all share similar statistics, but have completely different meanings:</p>
+    </div>
+    <div class="ts-grid" id="ts-grid"></div>
+    <div class="ts-insight" id="ts-insight"></div>
+  </div>
+
+  <!-- ===================== SECTION 4: WHAT WE NEED ===================== -->
+  <div class="section">
+    <h2><span class="section-num">4</span> What We Need: Processing With Memory</h2>
+    <div class="card">
+      <p>The fundamental problem: an MLP <strong>processes all inputs simultaneously</strong>. It has no concept
+        of "first", "then", "after". To handle sequences, we need a network that:</p>
+    </div>
+
+    <div class="preview-card">
+      <h4>① Processes one element at a time</h4>
+      <p>Instead of seeing all words at once, read them left to right — just like a human.</p>
+    </div>
+    <div class="preview-card">
+      <h4>② Maintains a memory (hidden state)</h4>
+      <p>After reading each word, update an internal state that summarizes what's been seen so far.</p>
+    </div>
+    <div class="preview-card">
+      <h4>③ Lets context influence interpretation</h4>
+      <p>"not" before "good" changes the meaning. The memory of "not" must affect how "good" is processed.</p>
+    </div>
+
+    <div class="card">
+      <p>This is exactly what a <strong>Recurrent Neural Network (RNN)</strong> does. Here's the idea:</p>
+      <div class="rnn-flow" id="rnn-flow">
+        <div class="rnn-step">
+          <div class="rnn-label">Step 1</div>
+          <div class="rnn-word">"dog"</div>
+          <div class="rnn-mem">memory: dog</div>
+        </div>
+        <div class="rnn-arrow">→</div>
+        <div class="rnn-step">
+          <div class="rnn-label">Step 2</div>
+          <div class="rnn-word">"bites"</div>
+          <div class="rnn-mem">memory: dog bites</div>
+        </div>
+        <div class="rnn-arrow">→</div>
+        <div class="rnn-step">
+          <div class="rnn-label">Step 3</div>
+          <div class="rnn-word">"man"</div>
+          <div class="rnn-mem">memory: dog bites man</div>
+        </div>
+      </div>
+      <p style="text-align:center; font-size:0.85rem; color:#888; margin-top:8px;">
+        vs. a different sequence building different memory:
+      </p>
+      <div class="rnn-flow">
+        <div class="rnn-step">
+          <div class="rnn-label">Step 1</div>
+          <div class="rnn-word">"man"</div>
+          <div class="rnn-mem">memory: man</div>
+        </div>
+        <div class="rnn-arrow">→</div>
+        <div class="rnn-step">
+          <div class="rnn-label">Step 2</div>
+          <div class="rnn-word">"bites"</div>
+          <div class="rnn-mem">memory: man bites</div>
+        </div>
+        <div class="rnn-arrow">→</div>
+        <div class="rnn-step">
+          <div class="rnn-label">Step 3</div>
+          <div class="rnn-word">"dog"</div>
+          <div class="rnn-mem">memory: man bites dog</div>
+        </div>
+      </div>
+      <p style="margin-top:14px;">Now the order <strong>matters</strong> — the hidden state at step 3 is different because
+        the sequence of updates was different. That's the key insight behind RNNs, and we'll build one in the next module.</p>
+    </div>
+  </div>
+
+  <!-- Key insight banner -->
+  <div class="insight-banner">
+    <p>An MLP sees all inputs at once with <span class="hl2">no sense of order</span>.<br>
+    For language, music, stock prices — <span class="hl">ORDER IS EVERYTHING</span>.<br>
+    We need a network that processes elements <span class="hl">sequentially</span>, with <span class="hl">memory</span>.</p>
+  </div>
+
+  <!-- Things to Try -->
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Type "cat chases mouse" and "mouse chases cat"</strong> in the comparison box — same words, same MLP output, but very different stories for the cat and the mouse.</li>
+      <li><strong>Try "not bad" and "bad not"</strong> — the MLP can't distinguish negation from nonsense. In real language, word order defines grammar and meaning.</li>
+      <li><strong>Add duplicate words</strong> — "dog dog bites man" vs "dog bites man man". Now the word SETS differ, so the MLP CAN tell them apart. It only fails when the same words are rearranged.</li>
+      <li><strong>Look at the time series</strong> — Rising and Falling have identical sums and means. Any model that aggregates values without considering position will confuse them.</li>
+      <li><strong>Think about music</strong> — the notes C, E, G played in order make a major chord. Played as G, E, C they're an inversion. Same notes, different feel. Order is the music.</li>
+      <li><strong>Consider "the dog" vs "dog the"</strong> — even two words can carry order-dependent meaning. Articles before nouns vs after make English vs nonsense.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// ===================== SECTION 1: Load order experiment =====================
+async function loadDemo() {
+  const resp = await fetch('/api/demo');
+  const pairs = await resp.json();
+  const grid = document.getElementById('pair-grid');
+  grid.innerHTML = '';
+
+  pairs.forEach(pair => {
+    const card = document.createElement('div');
+    card.className = 'pair-card';
+
+    // Build compact vector display
+    function vecHtml(vec) {
+      return vec.map(v => {
+        const abs = Math.abs(v);
+        const hue = v >= 0 ? 200 : 0; // blue vs red
+        const sat = Math.min(abs * 120, 100);
+        const light = 20 + Math.min(abs * 30, 35);
+        return `<div class="vec-cell" style="background:hsl(${hue},${sat}%,${light}%);color:hsl(${hue},60%,70%)" title="${v.toFixed(3)}">${v.toFixed(1)}</div>`;
+      }).join('');
+    }
+
+    card.innerHTML = `
+      <div class="pair-label">${pair.name}</div>
+      <div class="pair-row">
+        <div class="pair-side">
+          <div class="pair-sentence">"${pair.sentence_a}"</div>
+          <div class="pair-meaning">${pair.meaning_a}</div>
+          <div style="font-size:0.72rem;color:#666;margin-top:8px;">Bag vector:</div>
+          <div class="vec-row">${vecHtml(pair.result_a.bag_vector)}</div>
+        </div>
+        <div class="pair-side">
+          <div class="pair-sentence">"${pair.sentence_b}"</div>
+          <div class="pair-meaning">${pair.meaning_b}</div>
+          <div style="font-size:0.72rem;color:#666;margin-top:8px;">Bag vector:</div>
+          <div class="vec-row">${vecHtml(pair.result_b.bag_vector)}</div>
+        </div>
+      </div>
+      <div class="pair-verdict identical">
+        <span class="verdict-icon">⚠</span>
+        MLP output is <strong>identical</strong> for both sentences — it cannot tell them apart!
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  // Build bag-of-words demo from first pair
+  buildBowDemo(pairs[0]);
+}
+
+// ===================== BAG-OF-WORDS VISUAL =====================
+function buildBowDemo(pair) {
+  const el = document.getElementById('bow-demo');
+  const words = pair.sentence_a.split(' ');
+  const colors = ['#4fc3f7', '#ffb74d', '#ce93d8', '#81c784', '#ef5350'];
+
+  let html = '<div class="card"><p style="font-size:0.82rem;color:#9e9e9e;margin-bottom:8px;">How a bag-of-words MLP processes <strong>"' + pair.sentence_a + '"</strong>:</p>';
+  html += '<div class="bow-visual">';
+  words.forEach((w, i) => {
+    if (i > 0) html += '<div class="bow-op">+</div>';
+    html += `<div class="bow-word" style="background:${colors[i % colors.length]}22;color:${colors[i % colors.length]};border:1px solid ${colors[i % colors.length]}44">vec("${w}")</div>`;
+  });
+  html += '<div class="bow-op">=</div>';
+  html += '<div class="bow-result" style="background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);">bag vector</div>';
+  html += '</div>';
+
+  html += '<p style="font-size:0.82rem;color:#9e9e9e;margin:12px 0 8px;">Same words, different order — <strong>"' + pair.sentence_b + '"</strong>:</p>';
+  const words2 = pair.sentence_b.split(' ');
+  html += '<div class="bow-visual">';
+  words2.forEach((w, i) => {
+    if (i > 0) html += '<div class="bow-op">+</div>';
+    const origIdx = words.indexOf(w);
+    const ci = origIdx >= 0 ? origIdx : i;
+    html += `<div class="bow-word" style="background:${colors[ci % colors.length]}22;color:${colors[ci % colors.length]};border:1px solid ${colors[ci % colors.length]}44">vec("${w}")</div>`;
+  });
+  html += '<div class="bow-op">=</div>';
+  html += '<div class="bow-result" style="background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);">same bag vector!</div>';
+  html += '</div>';
+
+  html += '<p style="font-size:0.85rem;color:#ef5350;font-weight:600;text-align:center;margin-top:8px;">';
+  html += 'vec("dog") + vec("bites") + vec("man") = vec("man") + vec("bites") + vec("dog") — addition is commutative!';
+  html += '</p></div>';
+
+  el.innerHTML = html;
+}
+
+// ===================== SECTION 2: Interactive comparison =====================
+document.getElementById('btn-compare').addEventListener('click', runComparison);
+document.getElementById('input-a').addEventListener('keydown', e => { if (e.key === 'Enter') runComparison(); });
+document.getElementById('input-b').addEventListener('keydown', e => { if (e.key === 'Enter') runComparison(); });
+
+async function runComparison() {
+  const a = document.getElementById('input-a').value.trim();
+  const b = document.getElementById('input-b').value.trim();
+  if (!a || !b) return;
+
+  const resp = await fetch('/api/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sentence_a: a, sentence_b: b }),
+  });
+  const data = await resp.json();
+  const el = document.getElementById('compare-result');
+
+  function vecHtml(vec, label) {
+    return `<div style="font-size:0.72rem;color:#666;margin:6px 0 2px;">${label}:</div><div class="vec-row">${
+      vec.map(v => {
+        const abs = Math.abs(v);
+        const hue = v >= 0 ? 200 : 0;
+        const sat = Math.min(abs * 120, 100);
+        const light = 20 + Math.min(abs * 30, 35);
+        return `<div class="vec-cell" style="background:hsl(${hue},${sat}%,${light}%);color:hsl(${hue},60%,70%)" title="${v.toFixed(4)}">${v.toFixed(1)}</div>`;
+      }).join('')
+    }</div>`;
+  }
+
+  function probsHtml(probs, label) {
+    return `<div style="font-size:0.72rem;color:#666;margin:6px 0 2px;">${label}:</div><div class="vec-row">${
+      probs.map((p, i) => {
+        const v = p * 100;
+        return `<div class="vec-cell" style="background:rgba(79,195,247,${p});color:#fff;width:48px;" title="Output ${i}: ${(p*100).toFixed(1)}%">${v.toFixed(0)}%</div>`;
+      }).join('')
+    }</div>`;
+  }
+
+  let html = '';
+  if (data.bag_identical) {
+    html += '<div class="match-label same">⚠ MLP outputs are IDENTICAL — it cannot distinguish these sentences!</div>';
+    if (data.same_word_set) {
+      html += '<div class="compare-detail">Same words, different order → same bag-of-words → same output. This is the fundamental limitation.</div>';
+    }
+  } else {
+    html += '<div class="match-label diff">✓ MLP outputs differ (bag difference: ' + data.bag_difference.toFixed(4) + ')</div>';
+    if (!data.same_word_set) {
+      html += '<div class="compare-detail">The sentences use different words, so the bag vectors differ. The MLP only fails when the same words are rearranged.</div>';
+    }
+  }
+
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">';
+  html += '<div style="flex:1;min-width:250px;">';
+  html += `<div style="font-family:Consolas,monospace;font-size:0.9rem;color:#fff;margin-bottom:4px;">"${data.sentence_a}"</div>`;
+  html += vecHtml(data.result_a.bag_vector, 'Bag vector');
+  html += probsHtml(data.result_a.output_probs, 'MLP output');
+  html += '</div>';
+  html += '<div style="flex:1;min-width:250px;">';
+  html += `<div style="font-family:Consolas,monospace;font-size:0.9rem;color:#fff;margin-bottom:4px;">"${data.sentence_b}"</div>`;
+  html += vecHtml(data.result_b.bag_vector, 'Bag vector');
+  html += probsHtml(data.result_b.output_probs, 'MLP output');
+  html += '</div>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+// ===================== SECTION 3: Time series =====================
+async function loadTimeSeries() {
+  const resp = await fetch('/api/timeseries');
+  const data = await resp.json();
+  const grid = document.getElementById('ts-grid');
+  grid.innerHTML = '';
+
+  const lineColors = {
+    rising: '#4fc3f7',
+    falling: '#ef5350',
+    peak: '#ffb74d',
+    valley: '#ce93d8',
+    oscillating: '#66bb6a',
+  };
+
+  for (const [key, pat] of Object.entries(data.patterns)) {
+    const card = document.createElement('div');
+    card.className = 'ts-card';
+    card.innerHTML = `
+      <h4>${pat.name}</h4>
+      <div class="ts-desc">${pat.description}</div>
+      <canvas id="ts-${key}" height="80"></canvas>
+      <div class="ts-stats">
+        Sum: <span>${pat.sum.toFixed(0)}</span> &nbsp;|&nbsp;
+        Mean: <span>${pat.mean.toFixed(1)}</span> &nbsp;|&nbsp;
+        Values: <span>[${pat.values.join(', ')}]</span>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    // Draw the chart after adding to DOM
+    requestAnimationFrame(() => {
+      const canvas = document.getElementById(`ts-${key}`);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.offsetWidth;
+      const h = 80;
+      canvas.width = w * (window.devicePixelRatio || 1);
+      canvas.height = h * (window.devicePixelRatio || 1);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+      const vals = pat.values;
+      const maxV = 9, minV = 0;
+      const padX = 20, padY = 8;
+      const plotW = w - padX * 2, plotH = h - padY * 2;
+
+      // Grid lines
+      ctx.strokeStyle = '#1e1e3a';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padY + (plotH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
+      }
+
+      // Data line
+      ctx.strokeStyle = lineColors[key] || '#4fc3f7';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      vals.forEach((v, i) => {
+        const x = padX + (i / (vals.length - 1)) * plotW;
+        const y = padY + plotH - ((v - minV) / (maxV - minV)) * plotH;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Data points
+      ctx.fillStyle = lineColors[key] || '#4fc3f7';
+      vals.forEach((v, i) => {
+        const x = padX + (i / (vals.length - 1)) * plotW;
+        const y = padY + plotH - ((v - minV) / (maxV - minV)) * plotH;
+        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+      });
+    });
+  }
+
+  // Insight box
+  const insight = document.getElementById('ts-insight');
+  insight.innerHTML = `<p>⚠ ${data.key_insight}</p>`;
+}
+
+// ===================== INIT =====================
+loadDemo();
+loadTimeSeries();
+// Auto-run the first comparison
+setTimeout(runComparison, 500);
+</script>
+</body>
+</html>

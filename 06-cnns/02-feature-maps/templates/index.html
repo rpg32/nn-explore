@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06.2 — Feature Maps &amp; Filters</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .card p:last-child { margin-bottom: 0; }
+
+  /* Image selector */
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ds-btn { padding: 6px 14px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+  .ds-btn:hover { border-color: #4fc3f7; color: #ccc; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; background: rgba(79,195,247,0.08); }
+
+  /* Main layout: input image on left, feature map grid on right */
+  .main-layout { display: flex; gap: 24px; margin-bottom: 20px; align-items: flex-start; }
+  .input-panel { flex-shrink: 0; }
+  .maps-panel { flex: 1; min-width: 0; }
+
+  .vis-panel { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; text-align: center; }
+  .vis-panel h3 { font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .vis-panel canvas { display: block; margin: 0 auto; border-radius: 4px; }
+  .vis-panel .info { font-family: Consolas, monospace; font-size: 0.75rem; color: #666; margin-top: 6px; }
+
+  /* Feature map grid: 4 columns × 2 rows */
+  .fm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .fm-card {
+    background: #111128; border: 1px solid #1e1e3a; border-radius: 10px;
+    padding: 10px; text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .fm-card:hover { border-color: #4fc3f7; transform: translateY(-2px); }
+  .fm-card.selected { border-color: #ffb74d; box-shadow: 0 0 12px rgba(255,183,77,0.2); }
+  .fm-card h4 { font-size: 0.78rem; font-weight: 600; color: #fff; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fm-card canvas { display: block; margin: 0 auto; border-radius: 3px; }
+  .fm-card .fm-range { font-family: Consolas, monospace; font-size: 0.68rem; color: #555; margin-top: 4px; }
+
+  /* Kernel detail panel — shown when a feature map is clicked */
+  .detail-panel {
+    background: #111128; border: 1px solid #1e1e3a; border-radius: 10px;
+    padding: 20px 24px; margin-bottom: 20px; display: none;
+  }
+  .detail-panel.visible { display: block; }
+  .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .detail-header h3 { font-size: 1.05rem; font-weight: 700; color: #fff; }
+  .detail-header .close-btn {
+    margin-left: auto; background: none; border: 1px solid #2a2a4a;
+    color: #888; border-radius: 5px; padding: 2px 10px; cursor: pointer; font-size: 0.8rem;
+  }
+  .detail-header .close-btn:hover { border-color: #ef5350; color: #ef5350; }
+  .detail-body { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .kernel-grid-display { display: inline-grid; gap: 2px; }
+  .kernel-cell-display {
+    width: 54px; height: 38px; display: flex; align-items: center; justify-content: center;
+    font-family: Consolas, monospace; font-size: 0.85rem; border-radius: 3px;
+  }
+  .detail-desc { flex: 1; min-width: 200px; }
+  .detail-desc p { font-size: 0.88rem; color: #b0b0c0; line-height: 1.6; }
+  .detail-desc .insight { margin-top: 10px; padding: 10px 14px; background: rgba(79,195,247,0.08); border-left: 3px solid #4fc3f7; border-radius: 0 6px 6px 0; }
+  .detail-desc .insight p { color: #90caf9; font-size: 0.84rem; }
+
+  /* Insight callout */
+  .insight-card {
+    background: rgba(129,199,132,0.08); border: 1px solid rgba(129,199,132,0.25);
+    border-radius: 10px; padding: 18px 24px; margin-bottom: 20px;
+  }
+  .insight-card h3 { color: #81c784; margin-bottom: 8px; font-size: 0.95rem; }
+  .insight-card p { color: #a5d6a7; font-size: 0.9rem; }
+
+  /* Challenges */
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  .loading { color: #555; font-style: italic; text-align: center; padding: 40px; }
+
+  @media (max-width: 1000px) {
+    .main-layout { flex-direction: column; align-items: center; }
+    .fm-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 06 &middot; CNNs</div>
+  <h1>Feature Maps &amp; Filters</h1>
+  <p class="subtitle">A CNN applies MULTIPLE kernels simultaneously — each one detects a different feature in the same image</p>
+
+  <div class="card">
+    <p>In Module 06.1, we applied <strong>one kernel at a time</strong>. But a real convolutional layer uses
+      <strong>many kernels simultaneously</strong> — typically 32 or 64 in the first layer alone.
+      Each kernel produces its own <strong>feature map</strong>, and together they capture a rich description of the input.</p>
+    <p>Below, 8 hand-crafted kernels are applied to the same image. Notice how <strong>each kernel lights up
+      on different structures</strong> — horizontal edges, vertical edges, diagonals, corners. A CNN layer
+      does exactly this, but with <em>learned</em> kernels.</p>
+  </div>
+
+  <!-- Image selector -->
+  <div class="ctrl">
+    <h3>Choose an Input Image</h3>
+    <div class="ds-btns" id="img-btns"></div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="main-layout">
+    <!-- Input image (large) -->
+    <div class="input-panel">
+      <div class="vis-panel">
+        <h3>Input Image (28×28)</h3>
+        <canvas id="c-input" width="240" height="240"></canvas>
+        <div class="info" id="info-input">Select an image above</div>
+      </div>
+    </div>
+    <!-- Feature maps grid -->
+    <div class="maps-panel">
+      <div class="fm-grid" id="fm-grid">
+        <div class="loading">Select an image to see all 8 feature maps</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kernel detail (click to reveal) -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-header">
+      <h3 id="detail-title">—</h3>
+      <button class="close-btn" id="detail-close">✕ close</button>
+    </div>
+    <div class="detail-body">
+      <div>
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:1.5px;color:#9e9e9e;margin-bottom:6px;text-align:center;">Kernel Values (3×3)</div>
+        <div class="kernel-grid-display" id="detail-kernel" style="grid-template-columns:repeat(3,54px);"></div>
+      </div>
+      <div style="font-size:2rem;color:#333;">→</div>
+      <div>
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:1.5px;color:#9e9e9e;margin-bottom:6px;text-align:center;">Feature Map (enlarged)</div>
+        <canvas id="c-detail-fm" width="200" height="200"></canvas>
+      </div>
+      <div class="detail-desc" id="detail-desc"></div>
+    </div>
+  </div>
+
+  <!-- Key insight -->
+  <div class="insight-card">
+    <h3>🔑 Key Insight</h3>
+    <p>In a real CNN, these kernels are <strong>LEARNED</strong>, not hand-designed. The network discovers through
+      training which kernels are useful for the classification task. It starts with random kernels and backpropagation
+      adjusts them — the network might learn edge detectors, texture detectors, or entirely novel patterns that
+      no human would think to design.</p>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Cross image:</strong> Compare the Horizontal Edge vs Vertical Edge maps — one finds the horizontal bar, the other finds the vertical bar. Together they describe the whole shape.</li>
+      <li><strong>Digit "7":</strong> Horizontal Edge lights up on the top bar; Diagonal ↘ lights up on the angled stroke. A CNN combines these feature maps in later layers to recognize "this is a 7".</li>
+      <li><strong>Circle:</strong> The Laplacian highlights the entire outline uniformly, while directional edge kernels only find edges aligned with their direction. That's why CNNs need multiple kernels!</li>
+      <li><strong>Checkerboard:</strong> Every edge kernel goes wild — there are edges everywhere. But Blur smooths it all out. Notice how Sharpen makes the grid even crisper.</li>
+      <li><strong>Letter "L":</strong> The Corner kernel responds where the vertical stroke meets the horizontal base. This is how CNNs detect junctions and intersections.</li>
+      <li><strong>Click any feature map</strong> to see the kernel values that produced it. Notice how negative values (red) detect dark regions and positive values (green) detect bright regions.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+const INPUT_SZ = 240;    // input image display size
+const FM_SZ = 130;       // feature map thumbnail size
+const DETAIL_FM_SZ = 200; // enlarged feature map in detail panel
+
+// Detect if running standalone (port 5023) or via hub (port 5000)
+const base = location.port === '5023' ? '' : '/06-2';
+
+let allImages = {};       // { id: { name } }
+let currentImageData = null;
+let currentResults = null; // array of 8 kernel results
+let selectedFmIdx = -1;
+
+// ============================================================
+// Canvas helpers (dpr-aware)
+// ============================================================
+function setupCanvas(id, sz) {
+  const c = document.getElementById(id);
+  c.width = sz * dpr;
+  c.height = sz * dpr;
+  c.style.width = sz + 'px';
+  c.style.height = sz + 'px';
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { c, ctx };
+}
+
+function createDprCanvas(sz) {
+  const c = document.createElement('canvas');
+  c.width = sz * dpr;
+  c.height = sz * dpr;
+  c.style.width = sz + 'px';
+  c.style.height = sz + 'px';
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { c, ctx };
+}
+
+// Draw a 2D array as grayscale image
+function drawGrayscale(ctx, data, sz) {
+  const rows = data.length, cols = data[0].length;
+  const cs = sz / cols;
+  ctx.clearRect(0, 0, sz, sz);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = Math.round(data[r][c] * 255);
+      ctx.fillStyle = `rgb(${v},${v},${v})`;
+      ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+  }
+}
+
+// Draw a feature map with a blue-tinted colormap
+function drawFeatureMap(ctx, data, sz) {
+  const rows = data.length, cols = data[0].length;
+  const cs = sz / cols;
+  ctx.clearRect(0, 0, sz, sz);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = data[r][c]; // Already normalized 0-1
+      // Dark blue → bright cyan/white colormap
+      const R = Math.round(v * 200 + 10);
+      const G = Math.round(v * 210 + 10);
+      const B = Math.round(v * 255 + 30);
+      ctx.fillStyle = `rgb(${R},${G},${B})`;
+      ctx.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+  }
+}
+
+// ============================================================
+// Input image canvas
+// ============================================================
+const inputCanvas = setupCanvas('c-input', INPUT_SZ);
+
+function renderInputImage(data) {
+  drawGrayscale(inputCanvas.ctx, data, INPUT_SZ);
+}
+
+// ============================================================
+// Feature map grid
+// ============================================================
+function renderFeatureMaps(results) {
+  const grid = document.getElementById('fm-grid');
+  grid.innerHTML = '';
+
+  results.forEach((r, idx) => {
+    const card = document.createElement('div');
+    card.className = 'fm-card';
+    card.dataset.idx = idx;
+
+    // Title
+    const h4 = document.createElement('h4');
+    h4.textContent = r.name;
+    card.appendChild(h4);
+
+    // Canvas
+    const { c, ctx } = createDprCanvas(FM_SZ);
+    c.style.borderRadius = '3px';
+    drawFeatureMap(ctx, r.feature_map_display, FM_SZ);
+    card.appendChild(c);
+
+    // Range info
+    const info = document.createElement('div');
+    info.className = 'fm-range';
+    info.textContent = `[${r.fm_min.toFixed(1)}, ${r.fm_max.toFixed(1)}]`;
+    card.appendChild(info);
+
+    // Click handler
+    card.addEventListener('click', () => showDetail(idx));
+
+    grid.appendChild(card);
+  });
+}
+
+// ============================================================
+// Detail panel
+// ============================================================
+function showDetail(idx) {
+  const r = currentResults[idx];
+  selectedFmIdx = idx;
+
+  // Highlight selected card
+  document.querySelectorAll('.fm-card').forEach((c, i) =>
+    c.classList.toggle('selected', i === idx));
+
+  // Title
+  document.getElementById('detail-title').textContent = r.name + ' Kernel';
+
+  // Kernel values grid
+  const kernelEl = document.getElementById('detail-kernel');
+  kernelEl.innerHTML = '';
+  for (let row = 0; row < r.kernel.length; row++) {
+    for (let col = 0; col < r.kernel[0].length; col++) {
+      const v = r.kernel[row][col];
+      const cell = document.createElement('div');
+      cell.className = 'kernel-cell-display';
+      // Color-code: negative = red, positive = green, zero = dim
+      let bg, fg;
+      if (v > 0) { bg = '#1b3a1b'; fg = '#66bb6a'; }
+      else if (v < 0) { bg = '#3a1b1b'; fg = '#ef5350'; }
+      else { bg = '#1a1a2a'; fg = '#555'; }
+      cell.style.background = bg;
+      cell.style.color = fg;
+      cell.textContent = Number.isInteger(v) ? v : v.toFixed(2);
+      kernelEl.appendChild(cell);
+    }
+  }
+
+  // Enlarged feature map
+  const detailFmCanvas = setupCanvas('c-detail-fm', DETAIL_FM_SZ);
+  drawFeatureMap(detailFmCanvas.ctx, r.feature_map_display, DETAIL_FM_SZ);
+
+  // Description
+  const descEl = document.getElementById('detail-desc');
+  descEl.innerHTML = `
+    <p>${r.desc}</p>
+    <div class="insight">
+      <p>Output size: <strong>${r.fm_shape[0]}×${r.fm_shape[1]}</strong> &nbsp;|&nbsp;
+         Value range: <strong>[${r.fm_min.toFixed(2)}, ${r.fm_max.toFixed(2)}]</strong></p>
+      <p style="margin-top:6px;">Bright areas = strong kernel response (pattern detected).<br>
+         Dark areas = weak or no response.</p>
+    </div>
+  `;
+
+  // Show panel
+  document.getElementById('detail-panel').classList.add('visible');
+}
+
+document.getElementById('detail-close').addEventListener('click', () => {
+  document.getElementById('detail-panel').classList.remove('visible');
+  document.querySelectorAll('.fm-card').forEach(c => c.classList.remove('selected'));
+  selectedFmIdx = -1;
+});
+
+// ============================================================
+// API calls
+// ============================================================
+async function loadImages() {
+  const resp = await fetch(base + '/api/images');
+  allImages = await resp.json();
+
+  const btnContainer = document.getElementById('img-btns');
+  btnContainer.innerHTML = '';
+  for (const [id, info] of Object.entries(allImages)) {
+    const btn = document.createElement('button');
+    btn.className = 'ds-btn';
+    btn.textContent = info.name;
+    btn.dataset.id = id;
+    btn.addEventListener('click', () => selectImage(id));
+    btnContainer.appendChild(btn);
+  }
+}
+
+async function selectImage(id) {
+  // Update button state
+  document.querySelectorAll('#img-btns .ds-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.id === id));
+
+  // Close detail panel
+  document.getElementById('detail-panel').classList.remove('visible');
+  selectedFmIdx = -1;
+
+  // Show loading
+  document.getElementById('fm-grid').innerHTML = '<div class="loading">Computing 8 feature maps…</div>';
+
+  // Fetch all feature maps
+  const resp = await fetch(base + '/api/apply_all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_name: id }),
+  });
+  const data = await resp.json();
+
+  currentImageData = data.image_data;
+  currentResults = data.results;
+
+  // Render input image
+  renderInputImage(currentImageData);
+  document.getElementById('info-input').textContent =
+    `${data.image_name} — 28 × 28 pixels`;
+
+  // Render all feature maps
+  renderFeatureMaps(currentResults);
+}
+
+// ============================================================
+// Init
+// ============================================================
+async function init() {
+  await loadImages();
+  // Select circle by default
+  selectImage('circle');
+}
+
+init();
+</script>
+</body>
+</html>

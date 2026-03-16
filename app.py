@@ -236,10 +236,32 @@ MODULES = [
         'phase_name': 'Deep Learning',
         'group': '06',
         'group_name': 'CNNs',
-        'title': 'Building a CNN',
+        'title': 'Feature Maps & Filters',
+        'desc': 'Multiple kernels applied simultaneously — each one detects a different feature in the same image.',
+        'path': '06-cnns/02-feature-maps',
+        'status': 'ready',
+    },
+    {
+        'id': '06-3',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '06',
+        'group_name': 'CNNs',
+        'title': 'Pooling & Stride',
         'desc': 'The full pipeline — convolution, pooling, stacking, flattening to classification.',
         'path': '06-cnns/02-building-a-cnn',
         'status': 'ready',
+    },
+    {
+        'id': '06-4',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '06',
+        'group_name': 'CNNs',
+        'title': 'Build & Train a CNN',
+        'desc': 'Train a CNN on handwritten digits — watch kernels learn to detect features.',
+        'path': '06-cnns/04-build-train-cnn',
+        'status': 'coming',
     },
     {
         'id': '07-1',
@@ -247,9 +269,42 @@ MODULES = [
         'phase_name': 'Deep Learning',
         'group': '07',
         'group_name': 'RNNs',
-        'title': 'Recurrent Neural Networks',
+        'title': 'Why Sequences Are Special',
+        'desc': 'Order matters — why MLPs fail at language and time series.',
+        'path': '07-rnns/01-why-sequences',
+        'status': 'ready',
+    },
+    {
+        'id': '07-2',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '07',
+        'group_name': 'RNNs',
+        'title': 'Recurrent Connections',
         'desc': 'Processing sequences one element at a time, carrying memory in a hidden state.',
         'path': '07-rnns/01-recurrence',
+        'status': 'ready',
+    },
+    {
+        'id': '07-4',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '07',
+        'group_name': 'RNNs',
+        'title': 'LSTM',
+        'desc': 'Long Short-Term Memory — gates and a cell state highway that fix vanishing gradients.',
+        'path': '07-rnns/04-lstm',
+        'status': 'ready',
+    },
+    {
+        'id': '07-5',
+        'phase': 3,
+        'phase_name': 'Deep Learning',
+        'group': '07',
+        'group_name': 'RNNs',
+        'title': 'Build a Text Predictor',
+        'desc': 'Train a character-level LSTM — watch it learn to predict English from scratch.',
+        'path': '07-rnns/05-text-predictor',
         'status': 'ready',
     },
 ]
@@ -796,54 +851,160 @@ def m06_1_step():
 
 
 # =============================================================
-# MODULE 06-2: Building a CNN
+# MODULE 06-2: Feature Maps & Filters
 # =============================================================
-_cnn_images = None
+_fm_images = nn['06-2'].make_test_images()
 
 @app.route('/06-2/')
 def m06_2_page():
-    return send_file(os.path.join(BASE, '06-cnns/02-building-a-cnn/templates/index.html'))
+    return send_file(os.path.join(BASE, '06-cnns/02-feature-maps/templates/index.html'))
 
 @app.route('/06-2/api/images')
 def m06_2_images():
-    global _cnn_images
-    if _cnn_images is None:
-        _cnn_images = nn['06-2'].make_images()
-    return jsonify({k: {'name': v['name'], 'data': v['data'].tolist()} for k, v in _cnn_images.items()})
+    return jsonify({k: {'name': v['name']} for k, v in _fm_images.items()})
 
-@app.route('/06-2/api/pipeline', methods=['POST'])
-def m06_2_pipeline():
+@app.route('/06-2/api/apply_all', methods=['POST'])
+def m06_2_apply_all():
     data = request.json
-    return jsonify(nn['06-2'].run_pipeline(data['image'], data.get('pool_mode', 'max')))
-
-@app.route('/06-2/api/pooling', methods=['POST'])
-def m06_2_pooling():
-    data = request.json
-    return jsonify(nn['06-2'].pooling_demo(data['image'], data.get('pool_mode', 'max')))
+    image_name = data.get('image_name', 'circle')
+    results = nn['06-2'].apply_all_kernels(image_name, _fm_images)
+    image_data = _fm_images[image_name]['data'] if image_name in _fm_images else []
+    return jsonify({
+        'image_data': image_data,
+        'image_name': _fm_images.get(image_name, {}).get('name', ''),
+        'results': results,
+    })
 
 
 # =============================================================
-# MODULE 07-1: RNNs
+# MODULE 06-3: Pooling & Stride
+# =============================================================
+_cnn_images = None
+
+@app.route('/06-3/')
+def m06_3_page():
+    return send_file(os.path.join(BASE, '06-cnns/02-building-a-cnn/templates/index.html'))
+
+@app.route('/06-3/api/images')
+def m06_3_images():
+    global _cnn_images
+    if _cnn_images is None:
+        _cnn_images = nn['06-3'].make_images()
+    return jsonify({k: {'name': v['name'], 'data': v['data'].tolist()} for k, v in _cnn_images.items()})
+
+@app.route('/06-3/api/pipeline', methods=['POST'])
+def m06_3_pipeline():
+    data = request.json
+    return jsonify(nn['06-3'].run_pipeline(data['image'], data.get('pool_mode', 'max')))
+
+@app.route('/06-3/api/pooling', methods=['POST'])
+def m06_3_pooling():
+    data = request.json
+    return jsonify(nn['06-3'].pooling_demo(data['image'], data.get('pool_mode', 'max')))
+
+
+# =============================================================
+# MODULE 07-1: Why Sequences Are Special
 # =============================================================
 @app.route('/07-1/')
 def m07_1_page():
+    return send_file(os.path.join(BASE, '07-rnns/01-why-sequences/templates/index.html'))
+
+@app.route('/07-1/api/demo')
+def m07_1_demo():
+    return jsonify(nn['07-1'].order_experiment())
+
+@app.route('/07-1/api/classify', methods=['POST'])
+def m07_1_classify():
+    data = request.json
+    return jsonify(nn['07-1'].classify_sentence(data.get('sentence', 'dog bites man')))
+
+
+# =============================================================
+# MODULE 07-2: Recurrent Connections
+# =============================================================
+@app.route('/07-2/')
+def m07_2_page():
     return send_file(os.path.join(BASE, '07-rnns/01-recurrence/templates/index.html'))
 
-@app.route('/07-1/api/process', methods=['POST'])
-def m07_1_process():
+@app.route('/07-2/api/process', methods=['POST'])
+def m07_2_process():
     data = request.json
-    return jsonify(nn['07-1'].process_text(
+    return jsonify(nn['07-2'].process_text(
         data.get('text', 'hello'),
         hidden_size=int(data.get('hidden_size', 16)),
     ))
 
-@app.route('/07-1/api/gradient_flow', methods=['POST'])
-def m07_1_gradient_flow():
+@app.route('/07-2/api/gradient_flow', methods=['POST'])
+def m07_2_gradient_flow():
     data = request.json
-    return jsonify(nn['07-1'].gradient_flow_through_time(
+    return jsonify(nn['07-2'].gradient_flow_through_time(
         seq_length=int(data.get('seq_length', 30)),
         hidden_size=int(data.get('hidden_size', 16)),
     ))
+
+
+# =============================================================
+# MODULE 07-4: LSTM
+# =============================================================
+@app.route('/07-4/')
+def m07_4_page():
+    return send_file(os.path.join(BASE, '07-rnns/04-lstm/templates/index.html'))
+
+@app.route('/07-4/api/process', methods=['POST'])
+def m07_4_process():
+    data = request.json
+    return jsonify(nn['07-4'].process_sequence(
+        data.get('text', 'hello'),
+        hidden_size=int(data.get('hidden_size', 16)),
+    ))
+
+@app.route('/07-4/api/compare', methods=['POST'])
+def m07_4_compare():
+    data = request.json
+    return jsonify(nn['07-4'].compare_gradient_flow(
+        seq_length=int(data.get('seq_length', 30)),
+    ))
+
+
+# =============================================================
+# MODULE 07-5: Build a Text Predictor
+# =============================================================
+_text_predictor = None
+
+@app.route('/07-5/')
+def m07_5_page():
+    return send_file(os.path.join(BASE, '07-rnns/05-text-predictor/templates/index.html'))
+
+@app.route('/07-5/api/train', methods=['POST'])
+def m07_5_train():
+    global _text_predictor
+    data = request.json
+    if _text_predictor is None:
+        _text_predictor = nn['07-5'].TextPredictor()
+    results = _text_predictor.train_epochs(
+        int(data.get('epochs', 5)),
+        float(data.get('lr', 0.01)),
+    )
+    return jsonify(results)
+
+@app.route('/07-5/api/generate', methods=['POST'])
+def m07_5_generate():
+    global _text_predictor
+    if _text_predictor is None:
+        _text_predictor = nn['07-5'].TextPredictor()
+    data = request.json
+    return jsonify(_text_predictor.generate(
+        data.get('seed', 'the '),
+        int(data.get('length', 100)),
+        float(data.get('temperature', 0.8)),
+    ))
+
+@app.route('/07-5/api/reset', methods=['POST'])
+def m07_5_reset():
+    global _text_predictor
+    _text_predictor = nn['07-5'].TextPredictor()
+    return jsonify({'status': 'reset'})
 
 
 # =============================================================

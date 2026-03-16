@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07.5 — Text Predictor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; color: #fff; margin: 28px 0 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 10px; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+
+  .insight { background: rgba(102,187,106,0.08); border: 1px solid rgba(102,187,106,0.25); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .insight h3 { color: #66bb6a; margin-bottom: 8px; font-size: 1rem; }
+  .insight p { color: #c0c0d0; font-size: 0.93rem; }
+
+  /* Controls */
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ctrl-inline { display: flex; align-items: center; gap: 8px; }
+
+  input[type="text"], input[type="number"] {
+    background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 6px;
+    color: #e0e0e0; font-family: Consolas, monospace; font-size: 0.9rem;
+    padding: 8px 12px; width: 100%;
+  }
+  input[type="text"]:focus, input[type="number"]:focus {
+    outline: none; border-color: #4fc3f7;
+  }
+
+  .btn { padding: 8px 20px; border-radius: 6px; border: 2px solid #4fc3f7; background: #0d0d20;
+    color: #4fc3f7; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: rgba(79,195,247,0.1); }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+  .btn.danger { border-color: #ef5350; color: #ef5350; }
+  .btn.danger:hover { background: rgba(239,83,80,0.1); }
+
+  /* Slider */
+  .slider-wrap { display: flex; align-items: center; gap: 10px; }
+  .slider-wrap input[type="range"] { flex: 1; accent-color: #4fc3f7; }
+  .slider-val { font-family: Consolas, monospace; font-size: 0.85rem; color: #4fc3f7; min-width: 36px; }
+
+  /* Loss chart */
+  .chart-area { background: #0d0d20; border-radius: 8px; padding: 12px; margin-top: 12px; }
+  .chart-area canvas { display: block; width: 100%; border-radius: 4px; }
+
+  /* Status bar */
+  .status-bar { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+  .status-item { font-family: Consolas, monospace; font-size: 0.8rem; color: #888; }
+  .status-item span { color: #4fc3f7; font-weight: 700; }
+
+  /* Generated text display */
+  .gen-output { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 8px; padding: 16px 20px;
+    font-family: Consolas, monospace; font-size: 0.95rem; line-height: 1.8; min-height: 60px; margin-top: 12px; }
+  .gen-seed { color: #4fc3f7; font-weight: 700; }
+  .gen-new { color: #66bb6a; }
+  .gen-placeholder { color: #333; font-style: italic; }
+
+  /* Temperature explanation */
+  .temp-explain { font-size: 0.78rem; color: #666; margin-top: 6px; font-family: Consolas, monospace; }
+  .temp-explain .low { color: #4fc3f7; }
+  .temp-explain .high { color: #ef5350; }
+
+  /* Prediction view */
+  .pred-grid { margin-top: 12px; }
+  .pred-char-row { display: flex; align-items: stretch; gap: 2px; margin-bottom: 2px; }
+  .pred-input-char { width: 32px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font-family: Consolas, monospace; font-size: 1rem; font-weight: 700; border-radius: 4px 0 0 4px; flex-shrink: 0; }
+  .pred-input-char.correct { background: rgba(102,187,106,0.2); color: #66bb6a; }
+  .pred-input-char.wrong { background: rgba(239,83,80,0.1); color: #888; }
+  .pred-input-char.nocheck { background: #0d0d20; color: #888; }
+  .pred-bars { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+  .pred-bar-row { display: flex; align-items: center; gap: 4px; height: 13px; }
+  .pred-bar-label { font-family: Consolas, monospace; font-size: 0.7rem; width: 14px; text-align: center; color: #888; }
+  .pred-bar-bg { flex: 1; height: 10px; background: #111128; border-radius: 2px; overflow: hidden; max-width: 200px; }
+  .pred-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+  .pred-bar-pct { font-family: Consolas, monospace; font-size: 0.65rem; color: #555; width: 34px; }
+  .pred-actual { width: 28px; display: flex; align-items: center; justify-content: center;
+    font-family: Consolas, monospace; font-size: 0.8rem; font-weight: 700; border-radius: 0 4px 4px 0; }
+  .pred-actual.match { background: rgba(102,187,106,0.15); color: #66bb6a; }
+  .pred-actual.miss { background: rgba(239,83,80,0.08); color: #555; }
+
+  /* Corpus preview */
+  .corpus-preview { background: #0d0d20; border-radius: 8px; padding: 14px 18px; margin-top: 10px;
+    font-family: Consolas, monospace; font-size: 0.8rem; color: #666; line-height: 1.7;
+    max-height: 120px; overflow-y: auto; white-space: pre-wrap; }
+
+  /* Section labels */
+  .section-num { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7;
+    width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px;
+    font-size: 0.75rem; font-weight: 700; margin-right: 8px; }
+
+  /* Challenges */
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2);
+    border-radius: 10px; padding: 20px 24px; margin-top: 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  /* Training progress */
+  .training-progress { display: none; margin-top: 10px; }
+  .training-progress.active { display: block; }
+  .progress-text { font-family: Consolas, monospace; font-size: 0.8rem; color: #4fc3f7; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 07 &middot; RNNs</div>
+  <h1>Build a Text Predictor</h1>
+  <p class="subtitle">Train a character-level LSTM and watch it discover English — one letter at a time</p>
+
+  <!-- Key Insight -->
+  <div class="insight">
+    <h3>🔑 Key Insight</h3>
+    <p>The model has <strong>NEVER</strong> been told English grammar or spelling.
+      It discovers patterns purely from seeing characters one at a time and trying to predict the next one.
+      After enough training, it learns that 'q' is followed by 'u', that spaces come after words,
+      and that "th" usually leads to "e". <strong>This is the foundation of all modern language models.</strong></p>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="status-bar">
+    <div class="status-item">Epochs trained: <span id="stat-epochs">0</span></div>
+    <div class="status-item">Parameters: <span id="stat-params">—</span></div>
+    <div class="status-item">Last loss: <span id="stat-loss">—</span></div>
+    <div class="status-item">Hidden size: <span>64</span></div>
+    <div class="status-item">Vocab: <span id="stat-vocab">—</span></div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 1: TRAINING -->
+  <!-- ============================================ -->
+  <h2><span class="section-num">1</span>Train the LSTM</h2>
+  <div class="card">
+    <h3>Training Controls</h3>
+    <p>Each epoch feeds the entire training text through the LSTM, character by character.
+      The model tries to predict the next character at each position. When it's wrong, gradients
+      flow backward to adjust the weights. Watch the loss drop as the model discovers patterns.</p>
+
+    <div class="controls-row">
+      <div class="ctrl">
+        <h3>Epochs per batch</h3>
+        <input type="number" id="train-epochs" value="10" min="1" max="50" style="width:80px">
+      </div>
+      <div class="ctrl">
+        <h3>Learning rate</h3>
+        <input type="number" id="train-lr" value="0.01" min="0.001" max="0.1" step="0.001" style="width:80px">
+      </div>
+      <button class="btn" id="btn-train" onclick="trainModel()">▶ Train</button>
+      <button class="btn danger" id="btn-reset" onclick="resetModel()">Reset Model</button>
+    </div>
+    <div class="training-progress" id="training-progress">
+      <div class="progress-text" id="progress-text">Training...</div>
+    </div>
+
+    <div class="chart-area">
+      <canvas id="loss-chart" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- Corpus preview -->
+  <div class="card">
+    <h3>Training Corpus</h3>
+    <p>This is the ONLY text the model ever sees. It must discover all patterns from this ~500-character sample:</p>
+    <div class="corpus-preview" id="corpus-preview">Loading...</div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 2: GENERATION -->
+  <!-- ============================================ -->
+  <h2><span class="section-num">2</span>Generate Text</h2>
+  <div class="card">
+    <h3>Watch the Model Write</h3>
+    <p>Give the model a starting string ("seed"), and it will continue character by character —
+      at each step picking the next character based on what it's learned. The temperature controls
+      how adventurous it is.</p>
+
+    <div class="two-col">
+      <div>
+        <div class="ctrl" style="margin-bottom:10px">
+          <h3>Seed text</h3>
+          <input type="text" id="gen-seed" value="the " placeholder="Type starting text...">
+        </div>
+        <div class="ctrl" style="margin-bottom:10px">
+          <h3>Length (characters)</h3>
+          <input type="number" id="gen-length" value="100" min="10" max="300" style="width:80px">
+        </div>
+      </div>
+      <div>
+        <div class="ctrl" style="margin-bottom:10px">
+          <h3>Temperature</h3>
+          <div class="slider-wrap">
+            <input type="range" id="gen-temp" min="0.1" max="2.0" step="0.1" value="0.8">
+            <div class="slider-val" id="gen-temp-val">0.8</div>
+          </div>
+          <div class="temp-explain">
+            <span class="low">◀ 0.1 safe/repetitive</span> &nbsp;|&nbsp;
+            <span class="high">2.0 creative/chaotic ▶</span>
+          </div>
+        </div>
+        <button class="btn" id="btn-generate" onclick="generateText()" style="margin-top:8px">Generate →</button>
+      </div>
+    </div>
+
+    <div class="gen-output" id="gen-output">
+      <span class="gen-placeholder">Train the model first, then click Generate</span>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 3: PREDICTION VIEW -->
+  <!-- ============================================ -->
+  <h2><span class="section-num">3</span>Prediction View</h2>
+  <div class="card">
+    <h3>What Does the Model Predict at Each Position?</h3>
+    <p>Type some text and see what the model thinks comes next after each character.
+      After training, you should see it correctly predict common patterns like
+      'e' after "th" or a space after a complete word.</p>
+
+    <div class="controls-row">
+      <div class="ctrl" style="flex:1">
+        <h3>Input text</h3>
+        <input type="text" id="pred-text" value="the cat" placeholder="Type text to analyze...">
+      </div>
+      <button class="btn" id="btn-predict" onclick="getPredictions()">Analyze</button>
+    </div>
+
+    <div id="pred-legend" style="font-size:0.75rem; color:#555; margin-top:8px; font-family: Consolas, monospace;">
+      Each row: input char → top predictions → actual next char
+      (<span style="color:#66bb6a">green</span> = correct top-1 prediction)
+    </div>
+    <div class="pred-grid" id="pred-grid"></div>
+  </div>
+
+  <!-- Challenges -->
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Train 10 epochs</strong> and generate with seed "the ". It will be mostly gibberish.
+        Train 50 more and try again — you'll see real words emerge.</li>
+      <li><strong>Compare temperatures:</strong> Generate from "the " at 0.2 (safe, repetitive) vs 1.5 (chaotic).
+        Low temperature picks the most likely character every time. High temperature rolls the dice.</li>
+      <li><strong>Use the Prediction View</strong> with "the cat sat on" before and after training.
+        Before: random guesses. After: it predicts ' ' after words and 'e' after "th".</li>
+      <li><strong>Try a seed the model hasn't seen</strong> like "a fish" — it still generates plausible text
+        because it learned character-level patterns, not memorized sentences.</li>
+      <li><strong>Reset and retrain at different learning rates.</strong> 0.001 is slow but stable.
+        0.05 learns fast but might oscillate. Watch the loss curve shape change.</li>
+      <li><strong>Train 200+ epochs</strong> — the model will start to memorize the training text.
+        This is overfitting: great at reproducing training data, but less creative on new seeds.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+let allLosses = [];
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+async function init() {
+  const resp = await fetch('/api/status');
+  const data = await resp.json();
+  updateStatus(data.model);
+  document.getElementById('corpus-preview').textContent = data.corpus.text;
+}
+
+function updateStatus(model) {
+  document.getElementById('stat-epochs').textContent = model.total_epochs;
+  document.getElementById('stat-params').textContent = model.total_params.toLocaleString();
+  document.getElementById('stat-vocab').textContent = model.vocab_size + ' chars';
+  if (model.epoch_losses.length > 0) {
+    document.getElementById('stat-loss').textContent = model.epoch_losses[model.epoch_losses.length - 1].toFixed(4);
+  }
+  allLosses = model.epoch_losses;
+  drawLossChart();
+}
+
+// ============================================================
+// TRAINING
+// ============================================================
+async function trainModel() {
+  const epochs = parseInt(document.getElementById('train-epochs').value) || 10;
+  const lr = parseFloat(document.getElementById('train-lr').value) || 0.01;
+
+  const btn = document.getElementById('btn-train');
+  const prog = document.getElementById('training-progress');
+  const progText = document.getElementById('progress-text');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Training...';
+  prog.classList.add('active');
+  progText.textContent = `Training ${epochs} epochs at lr=${lr}...`;
+
+  try {
+    const resp = await fetch('/api/train', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ epochs, lr }),
+    });
+    const data = await resp.json();
+    updateStatus(data.model);
+
+    const lastLoss = data.losses[data.losses.length - 1];
+    progText.textContent = `Done! ${epochs} epochs trained. Loss: ${lastLoss.toFixed(4)}`;
+    setTimeout(() => prog.classList.remove('active'), 3000);
+  } catch (err) {
+    progText.textContent = `Error: ${err.message}`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '▶ Train';
+}
+
+async function resetModel() {
+  if (!confirm('Reset model to untrained state?')) return;
+
+  const resp = await fetch('/api/reset', { method: 'POST' });
+  const data = await resp.json();
+  allLosses = [];
+  updateStatus(data.model);
+  document.getElementById('gen-output').innerHTML =
+    '<span class="gen-placeholder">Model reset. Train it again to generate text.</span>';
+  document.getElementById('pred-grid').innerHTML = '';
+}
+
+// ============================================================
+// LOSS CHART
+// ============================================================
+function drawLossChart() {
+  const canvas = document.getElementById('loss-chart');
+  const W = canvas.parentElement.clientWidth - 24;
+  const H = 180;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  if (allLosses.length === 0) {
+    ctx.font = '13px Consolas';
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.fillText('Train the model to see the loss curve here', W / 2, H / 2);
+    return;
+  }
+
+  const pad = { l: 50, r: 15, t: 15, b: 28 };
+  const gw = W - pad.l - pad.r;
+  const gh = H - pad.t - pad.b;
+
+  const maxL = Math.max(...allLosses, 0.01);
+  const minL = Math.min(...allLosses, 0);
+  const range = maxL - minL || 1;
+
+  function gx(i) { return pad.l + (i / Math.max(allLosses.length - 1, 1)) * gw; }
+  function gy(v) { return pad.t + (1 - (v - minL) / range) * gh; }
+
+  // Grid lines
+  ctx.strokeStyle = '#1a1a35';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (gh / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    const val = maxL - (i / 4) * range;
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(2), pad.l - 6, y + 4);
+  }
+
+  // Loss line
+  ctx.strokeStyle = '#4fc3f7';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < allLosses.length; i++) {
+    const x = gx(i), y = gy(allLosses[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.lineTo(gx(allLosses.length - 1), pad.t + gh);
+  ctx.lineTo(gx(0), pad.t + gh);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(79,195,247,0.08)';
+  ctx.fill();
+
+  // X axis label
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+  ctx.fillText(`Epoch (${allLosses.length} total)`, pad.l + gw / 2, H - 4);
+
+  // Y axis label
+  ctx.save();
+  ctx.translate(12, pad.t + gh / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Loss', 0, 0);
+  ctx.restore();
+
+  // Current loss dot
+  if (allLosses.length > 0) {
+    const last = allLosses.length - 1;
+    ctx.beginPath();
+    ctx.arc(gx(last), gy(allLosses[last]), 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fill();
+  }
+}
+
+// ============================================================
+// GENERATION
+// ============================================================
+document.getElementById('gen-temp').addEventListener('input', function() {
+  document.getElementById('gen-temp-val').textContent = this.value;
+});
+
+async function generateText() {
+  const seed = document.getElementById('gen-seed').value || 'the ';
+  const length = parseInt(document.getElementById('gen-length').value) || 100;
+  const temperature = parseFloat(document.getElementById('gen-temp').value) || 0.8;
+
+  const btn = document.getElementById('btn-generate');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+
+  try {
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed, length, temperature }),
+    });
+    const data = await resp.json();
+
+    const output = document.getElementById('gen-output');
+    // Split text into seed part and generated part
+    const seedPart = data.text.slice(0, seed.length);
+    const genPart = data.text.slice(seed.length);
+    output.innerHTML = `<span class="gen-seed">${escHtml(seedPart)}</span><span class="gen-new">${escHtml(genPart)}</span>`;
+  } catch (err) {
+    document.getElementById('gen-output').innerHTML =
+      `<span style="color:#ef5350">Error: ${err.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Generate →';
+}
+
+// ============================================================
+// PREDICTION VIEW
+// ============================================================
+async function getPredictions() {
+  const text = document.getElementById('pred-text').value || 'the cat';
+
+  const btn = document.getElementById('btn-predict');
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await resp.json();
+    renderPredictions(data.predictions);
+  } catch (err) {
+    document.getElementById('pred-grid').innerHTML =
+      `<div style="color:#ef5350;padding:12px">Error: ${err.message}</div>`;
+  }
+
+  btn.disabled = false;
+}
+
+function renderPredictions(predictions) {
+  const grid = document.getElementById('pred-grid');
+  if (!predictions || predictions.length === 0) {
+    grid.innerHTML = '<div style="color:#333;padding:12px">No predictions</div>';
+    return;
+  }
+
+  const colors = ['#4fc3f7', '#ffb74d', '#ce93d8', '#81c784', '#ef9a9a'];
+
+  let html = '';
+  for (const p of predictions) {
+    const isCorrect = p.top1_correct;
+    const hasActual = p.actual_next !== null;
+    const charClass = !hasActual ? 'nocheck' : (isCorrect ? 'correct' : 'wrong');
+
+    const displayChar = p.input_char === ' ' ? '␣' : p.input_char;
+    const displayActual = p.actual_next === null ? '—' : (p.actual_next === ' ' ? '␣' : p.actual_next);
+
+    html += `<div class="pred-char-row">`;
+    html += `<div class="pred-input-char ${charClass}">${escHtml(displayChar)}</div>`;
+    html += `<div class="pred-bars">`;
+
+    // Show top 3 predictions
+    const top3 = p.predictions.slice(0, 3);
+    for (let i = 0; i < top3.length; i++) {
+      const pred = top3[i];
+      const pct = (pred.prob * 100);
+      const barW = Math.min(pct, 100);
+      const c = colors[i];
+      const pChar = pred.char === ' ' ? '␣' : pred.char;
+      html += `<div class="pred-bar-row">`;
+      html += `<div class="pred-bar-label" style="color:${c}">${escHtml(pChar)}</div>`;
+      html += `<div class="pred-bar-bg"><div class="pred-bar-fill" style="width:${barW}%;background:${c}"></div></div>`;
+      html += `<div class="pred-bar-pct">${pct.toFixed(1)}%</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+
+    const actualClass = isCorrect ? 'match' : 'miss';
+    html += `<div class="pred-actual ${hasActual ? actualClass : 'miss'}">${escHtml(displayActual)}</div>`;
+    html += `</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Handle window resize for chart
+window.addEventListener('resize', drawLossChart);
+
+// Keyboard shortcuts
+document.getElementById('pred-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter') getPredictions();
+});
+document.getElementById('gen-seed').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateText();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+init();
+</script>
+</body>
+</html>

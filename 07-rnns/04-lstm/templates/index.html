@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07.4 — LSTM</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.25rem; color: #fff; margin-bottom: 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 24px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+
+  .section { margin-bottom: 32px; }
+  .section-num { display: inline-block; background: rgba(79,195,247,0.12); color: #4fc3f7; width: 28px; height: 28px; text-align: center; line-height: 28px; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 8px; }
+
+  /* Formula box */
+  .formula-box { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px 20px; margin: 14px 0; font-family: Consolas, monospace; font-size: 0.88rem; line-height: 2; }
+  .formula-box .gate-label { display: inline-block; width: 100px; font-weight: 700; }
+  .formula-box .gate-forget { color: #ef5350; }
+  .formula-box .gate-input { color: #66bb6a; }
+  .formula-box .gate-cell { color: #4fc3f7; }
+  .formula-box .gate-output { color: #ffb74d; }
+  .formula-box .op { color: #666; }
+  .formula-box .key-eq { color: #fff; font-weight: 700; background: rgba(79,195,247,0.08); display: block; padding: 4px 10px; border-radius: 4px; margin: 6px 0; border-left: 3px solid #4fc3f7; }
+  .formula-box .key-eq .annot { font-size: 0.75rem; color: #888; font-weight: 400; }
+
+  /* Conveyor belt visual */
+  .conveyor-visual { display: flex; align-items: center; gap: 0; justify-content: center; margin: 18px 0; padding: 12px 0; overflow-x: auto; }
+  .conv-step { display: flex; flex-direction: column; align-items: center; min-width: 90px; position: relative; }
+  .conv-belt { height: 6px; background: #4fc3f7; width: 100%; position: relative; }
+  .conv-belt::after { content: ''; position: absolute; right: -6px; top: -4px; border: 7px solid transparent; border-left: 8px solid #4fc3f7; }
+  .conv-box { background: #111128; border: 1px solid #2a2a4a; border-radius: 6px; padding: 6px 10px; text-align: center; margin-bottom: 6px; }
+  .conv-box .clbl { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 0.8px; }
+  .conv-box .cval { font-family: Consolas, monospace; font-size: 0.8rem; color: #4fc3f7; font-weight: 700; }
+  .conv-worker { font-size: 0.65rem; color: #888; margin-top: 6px; text-align: center; line-height: 1.3; }
+  .conv-worker .gate-name { font-weight: 700; }
+  .conv-worker .gate-name.fg { color: #ef5350; }
+  .conv-worker .gate-name.ig { color: #66bb6a; }
+  .conv-worker .gate-name.og { color: #ffb74d; }
+
+  /* Controls */
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ds-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.76rem; cursor: pointer; font-family: Consolas, monospace; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .text-input { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 6px; color: #e0e0e0; font-family: Consolas, monospace; font-size: 0.9rem; padding: 8px 12px; width: 220px; }
+  .text-input:focus { border-color: #4fc3f7; outline: none; }
+  .nav-btns { display: flex; gap: 6px; }
+  .nav-btn { padding: 8px 16px; border-radius: 6px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+  .nav-btn:hover { background: rgba(79,195,247,0.1); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn.reset { border-color: #777; color: #777; }
+
+  /* Live step display */
+  .live-step { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .live-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .step-badge { background: #4fc3f7; color: #000; padding: 4px 12px; border-radius: 12px; font-weight: 700; font-size: 0.85rem; }
+  .step-text-display { font-family: Consolas, monospace; font-size: 1.1rem; }
+  .step-text-display .done { color: #555; }
+  .step-text-display .current { color: #4fc3f7; font-weight: 700; background: rgba(79,195,247,0.15); padding: 2px 4px; border-radius: 3px; }
+  .step-text-display .future { color: #333; }
+
+  /* Gate visualization */
+  .gates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .gate-card { background: #0d0d20; border-radius: 8px; padding: 14px; }
+  .gate-card h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+  .gate-card h4.forget-label { color: #ef5350; }
+  .gate-card h4.input-label { color: #66bb6a; }
+  .gate-card h4.output-label { color: #ffb74d; }
+  .gate-card h4.cell-label { color: #4fc3f7; }
+  .gate-card h4.hidden-label { color: #ce93d8; }
+  .gate-card .gate-desc { font-size: 0.75rem; color: #666; margin-bottom: 6px; }
+  .gate-card .gate-avg { font-family: Consolas, monospace; font-size: 0.8rem; margin-top: 6px; }
+
+  .gate-heatmap { display: flex; gap: 2px; flex-wrap: wrap; }
+  .g-cell { width: 22px; height: 22px; border-radius: 2px; position: relative; cursor: default; }
+  .g-cell:hover::after { content: attr(data-val); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #000; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; font-family: Consolas, monospace; white-space: nowrap; z-index: 10; pointer-events: none; }
+
+  /* State cards (cell + hidden) */
+  .state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+
+  /* Prediction */
+  .pred-card { margin-top: 14px; background: #0d0d20; border-radius: 8px; padding: 14px; }
+  .pred-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .pred-char { font-family: Consolas, monospace; font-size: 1rem; font-weight: 700; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #111128; border-radius: 4px; }
+  .pred-bar-bg { flex: 1; height: 14px; background: #111128; border-radius: 3px; overflow: hidden; }
+  .pred-bar { height: 100%; border-radius: 3px; }
+  .pred-pct { font-family: Consolas, monospace; font-size: 0.75rem; color: #888; width: 40px; text-align: right; }
+
+  /* Gradient comparison chart */
+  .chart-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 1rem; color: #fff; margin-bottom: 8px; }
+  .chart-card p { font-size: 0.88rem; color: #888; margin-bottom: 12px; }
+  .chart-card canvas { display: block; border-radius: 6px; width: 100%; }
+  .chart-legend { display: flex; gap: 24px; margin-top: 10px; }
+  .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+  .chart-stats { display: flex; gap: 24px; margin-top: 12px; padding: 12px 16px; background: #0d0d20; border-radius: 8px; }
+  .chart-stat { text-align: center; }
+  .chart-stat .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: #666; }
+  .chart-stat .stat-value { font-family: Consolas, monospace; font-size: 1.1rem; font-weight: 700; }
+  .chart-stat .stat-value.rnn-color { color: #ef5350; }
+  .chart-stat .stat-value.lstm-color { color: #4fc3f7; }
+
+  /* Insight banner */
+  .insight-banner { background: linear-gradient(135deg, rgba(79,195,247,0.1), rgba(102,187,106,0.1)); border: 1px solid rgba(79,195,247,0.3); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; text-align: center; }
+  .insight-banner p { font-size: 1.05rem; color: #e0e0e0; font-weight: 600; margin: 0; line-height: 1.7; }
+  .insight-banner .hl { color: #4fc3f7; }
+  .insight-banner .hl2 { color: #ffb74d; }
+
+  /* Challenges */
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+
+  @media (max-width: 800px) {
+    .gates-grid { grid-template-columns: 1fr; }
+    .state-grid { grid-template-columns: 1fr; }
+    .controls-row { flex-direction: column; }
+    .text-input { width: 100%; }
+    .chart-stats { flex-direction: column; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 07 &middot; RNNs</div>
+  <h1>LSTM — Long Short-Term Memory</h1>
+  <p class="subtitle">A cell state acts as a gradient highway — information flows through time without vanishing.</p>
+
+  <!-- ===================== SECTION 1: THE GRADIENT HIGHWAY ===================== -->
+  <div class="section">
+    <h2><span class="section-num">1</span> The Cell State Is a Gradient Highway</h2>
+
+    <div class="card">
+      <h3>The Problem with Basic RNNs</h3>
+      <p>In a basic RNN, the hidden state passes through a <strong>matrix multiplication</strong> and <strong>tanh</strong> at every step.
+        Gradients must flow backward through all of these — each one shrinks the gradient a little.
+        After 20-30 steps, the gradient is effectively <strong>zero</strong>. The network can't learn from early characters.</p>
+      <p>LSTM's solution is beautifully simple: add a second state vector — the <strong>cell state</strong> — that runs through
+        ALL time steps with only <strong>element-wise multiply and add</strong>. No matrix multiplication on this path.
+        Gradients flow through it almost unchanged. It's a highway for gradient flow.</p>
+    </div>
+
+    <div class="card">
+      <h3>The Conveyor Belt Analogy</h3>
+      <p>Think of the cell state as a conveyor belt running through a factory. Items (information) ride the belt
+        from one end to the other. At each station, workers can:</p>
+
+      <div class="conveyor-visual">
+        <div class="conv-step">
+          <div class="conv-box"><div class="clbl">Cell State</div><div class="cval">c₀</div></div>
+          <div class="conv-belt"></div>
+          <div class="conv-worker"><span class="gate-name fg">Forget</span><br>erase items</div>
+        </div>
+        <div class="conv-step">
+          <div class="conv-box"><div class="clbl">+ New Info</div><div class="cval">c₁</div></div>
+          <div class="conv-belt"></div>
+          <div class="conv-worker"><span class="gate-name ig">Input</span><br>add items</div>
+        </div>
+        <div class="conv-step">
+          <div class="conv-box"><div class="clbl">+ New Info</div><div class="cval">c₂</div></div>
+          <div class="conv-belt"></div>
+          <div class="conv-worker"><span class="gate-name og">Output</span><br>inspect items</div>
+        </div>
+        <div class="conv-step">
+          <div class="conv-box"><div class="clbl">+ New Info</div><div class="cval">c₃</div></div>
+          <div class="conv-belt"></div>
+          <div class="conv-worker"><span class="gate-name ig">Input</span><br>add items</div>
+        </div>
+        <div class="conv-step">
+          <div class="conv-box"><div class="clbl">+ New Info</div><div class="cval">c₄ ...</div></div>
+          <div class="conv-belt" style="background: linear-gradient(90deg, #4fc3f7, transparent);"></div>
+          <div class="conv-worker">flows through<br>unchanged</div>
+        </div>
+      </div>
+
+      <p>The key insight: items on the belt <strong>don't get transformed</strong> — they're only multiplied (forget) or added to (input).
+        This means gradients flowing backward along the belt don't get squished by repeated matrix multiplications.
+        That's the gradient highway.</p>
+    </div>
+
+    <div class="formula-box">
+      <div><span class="gate-label gate-forget">Forget gate</span> <span class="op">f = σ( W_f · [h_prev, x] + b_f )</span></div>
+      <div><span class="gate-label gate-input">Input gate</span> <span class="op">i = σ( W_i · [h_prev, x] + b_i )</span></div>
+      <div><span class="gate-label gate-input">Candidate</span> <span class="op">c̃ = tanh( W_c · [h_prev, x] + b_c )</span></div>
+      <div><span class="gate-label gate-output">Output gate</span> <span class="op">o = σ( W_o · [h_prev, x] + b_o )</span></div>
+      <div class="key-eq">
+        <span class="gate-cell">c_new</span> <span class="op">=</span>
+        <span class="gate-forget">f</span> <span class="op">⊙ c_prev</span> <span class="op">+</span>
+        <span class="gate-input">i</span> <span class="op">⊙</span> <span class="gate-input">c̃</span>
+        <span class="annot">&nbsp; ← element-wise only! No matrix multiply on the cell state path</span>
+      </div>
+      <div>
+        <span class="gate-label gate-output">Hidden out</span>
+        <span class="op">h_new = </span><span class="gate-output">o</span><span class="op"> ⊙ tanh( </span><span class="gate-cell">c_new</span><span class="op"> )</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 2: GATE VISUALIZATION ===================== -->
+  <div class="section">
+    <h2><span class="section-num">2</span> Watch the Gates Work — Step Through Text</h2>
+
+    <div class="card">
+      <p>Step through text one character at a time. At each step, watch what the three gates do:</p>
+      <p>• <strong style="color:#ef5350">Forget gate</strong> — red = erase that memory slot, green = keep it<br>
+         • <strong style="color:#66bb6a">Input gate</strong> — how much new information to write into each slot<br>
+         • <strong style="color:#ffb74d">Output gate</strong> — what part of memory to expose as output<br>
+         • <strong style="color:#4fc3f7">Cell state</strong> — the gradient highway, evolving across steps<br>
+         • <strong style="color:#ce93d8">Hidden state</strong> — what the LSTM actually outputs (filtered view of cell)</p>
+    </div>
+
+    <div class="controls-row">
+      <div class="ctrl">
+        <h3>Text</h3>
+        <div class="ds-btns" id="text-btns">
+          <button class="ds-btn active" data-text="hello">hello</button>
+          <button class="ds-btn" data-text="the cat sat.">the cat sat.</button>
+          <button class="ds-btn" data-text="abcabcabc">abcabcabc</button>
+          <button class="ds-btn" data-text="aaaaaa">aaaaaa</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <h3>Custom</h3>
+        <input type="text" class="text-input" id="custom-text" placeholder="Type anything..." maxlength="40" spellcheck="false">
+      </div>
+      <div class="nav-btns">
+        <button class="nav-btn reset" id="btn-reset">Reset</button>
+        <button class="nav-btn" id="btn-prev" disabled>&larr; Prev</button>
+        <button class="nav-btn" id="btn-next">Next Step &rarr;</button>
+      </div>
+    </div>
+
+    <div class="live-step" id="live-step">
+      <div class="live-header">
+        <div class="step-badge" id="step-badge">Ready</div>
+        <div class="step-text-display" id="step-text"></div>
+      </div>
+
+      <!-- Gate heatmaps -->
+      <div class="gates-grid" id="gates-grid">
+        <div class="gate-card">
+          <h4 class="forget-label">Forget Gate</h4>
+          <div class="gate-desc">0 (red) = erase &nbsp;|&nbsp; 1 (green) = keep</div>
+          <div class="gate-heatmap" id="gate-forget"></div>
+          <div class="gate-avg" id="gate-forget-avg"></div>
+        </div>
+        <div class="gate-card">
+          <h4 class="input-label">Input Gate</h4>
+          <div class="gate-desc">How much new information to add to each slot</div>
+          <div class="gate-heatmap" id="gate-input"></div>
+          <div class="gate-avg" id="gate-input-avg"></div>
+        </div>
+        <div class="gate-card">
+          <h4 class="output-label">Output Gate</h4>
+          <div class="gate-desc">What part of memory to expose as hidden state</div>
+          <div class="gate-heatmap" id="gate-output"></div>
+          <div class="gate-avg" id="gate-output-avg"></div>
+        </div>
+        <div class="gate-card">
+          <h4 class="input-label">Candidate (New Info)</h4>
+          <div class="gate-desc">What the LSTM wants to write (before input gate filters it)</div>
+          <div class="gate-heatmap" id="gate-candidate"></div>
+          <div class="gate-avg" id="gate-candidate-avg"></div>
+        </div>
+      </div>
+
+      <!-- Cell state + Hidden state -->
+      <div class="state-grid">
+        <div class="gate-card">
+          <h4 class="cell-label">Cell State (Gradient Highway)</h4>
+          <div class="gate-desc">The conveyor belt — modified only by element-wise ×, +</div>
+          <div class="gate-heatmap" id="state-cell"></div>
+          <div class="gate-avg" id="state-cell-mag"></div>
+        </div>
+        <div class="gate-card">
+          <h4 class="hidden-label">Hidden State (Output)</h4>
+          <div class="gate-desc">Filtered view of cell state: output_gate × tanh(cell)</div>
+          <div class="gate-heatmap" id="state-hidden"></div>
+          <div class="gate-avg" id="state-hidden-mag"></div>
+        </div>
+      </div>
+
+      <!-- Predictions -->
+      <div class="pred-card">
+        <h4 style="font-size:0.78rem; color:#9e9e9e; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Next Character Prediction</h4>
+        <div id="live-preds"></div>
+        <p style="font-size:0.72rem;color:#555;margin-top:6px">Random — this LSTM is untrained. The visualization shows the gate mechanics.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 3: GRADIENT COMPARISON ===================== -->
+  <div class="section">
+    <h2><span class="section-num">3</span> RNN vs LSTM — Gradient Flow Compared</h2>
+
+    <div class="chart-card">
+      <h3>Gradient Strength Flowing Backward Through Time</h3>
+      <p>We start with a gradient of 1.0 at the last time step and flow it backward.
+        In the <strong style="color:#ef5350">RNN</strong>, each step multiplies by W_h and tanh' — the gradient decays exponentially.
+        In the <strong style="color:#4fc3f7">LSTM</strong>, the gradient flows through the cell state path, only multiplied
+        by the forget gate (~0.7-0.9) — it stays <strong>much stronger</strong> over long sequences.</p>
+      <canvas id="grad-chart" width="1140" height="280"></canvas>
+      <div class="chart-legend">
+        <div class="chart-legend-item"><div class="legend-dot" style="background:#ef5350"></div> Basic RNN</div>
+        <div class="chart-legend-item"><div class="legend-dot" style="background:#4fc3f7"></div> LSTM (cell state path)</div>
+      </div>
+      <div class="chart-stats" id="chart-stats"></div>
+    </div>
+  </div>
+
+  <!-- Insight banner -->
+  <div class="insight-banner">
+    <p>The cell state is a <span class="hl">gradient highway</span>.<br>
+    Three gates control what to <span class="hl2">forget</span>, what to <span class="hl">add</span>, and what to <span class="hl2">output</span>.<br>
+    Only element-wise ops on the cell state → <span class="hl">gradients flow through unchanged</span>.</p>
+  </div>
+
+  <!-- Things to Try -->
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Step through "hello" and watch the forget gate.</strong> It starts near 1 (all green) because of the bias trick — the LSTM defaults to remembering everything. As characters arrive, some slots start getting erased.</li>
+      <li><strong>Try "aaaaaa" — same character repeated.</strong> Watch how the gates settle into a pattern. The cell state should stabilize since the same input keeps arriving. The forget gate learns what's worth keeping.</li>
+      <li><strong>Try "abcabcabc" and watch the cell state evolve.</strong> When the pattern repeats, the cell state should show periodic behavior — the LSTM recognizes the cycle.</li>
+      <li><strong>Compare the gradient chart.</strong> The RNN gradient (red) drops to near zero within ~15 steps. The LSTM gradient (blue) stays meaningful across 30+ steps. This is why LSTMs can learn long-range dependencies.</li>
+      <li><strong>Look at the candidate vs input gate.</strong> The candidate (tanh) shows WHAT the LSTM wants to write. The input gate (sigmoid) controls HOW MUCH actually gets written. Together they're like a careful editor.</li>
+      <li><strong>Watch the hidden state vs cell state.</strong> The cell state is the full memory. The hidden state is a filtered view through the output gate. Not everything in memory needs to be output at every step.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+let currentData = null;
+let currentStep = -1;
+
+// ============================
+// CONTROLS
+// ============================
+function getText() {
+  const custom = document.getElementById('custom-text').value.trim();
+  if (custom) return custom;
+  const active = document.querySelector('#text-btns .ds-btn.active');
+  return active ? active.dataset.text : 'hello';
+}
+
+document.querySelectorAll('#text-btns .ds-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#text-btns .ds-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('custom-text').value = '';
+    loadText();
+  });
+});
+
+document.getElementById('custom-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    document.querySelectorAll('#text-btns .ds-btn').forEach(b => b.classList.remove('active'));
+    loadText();
+  }
+});
+document.getElementById('btn-reset').addEventListener('click', () => { currentStep = -1; renderStep(); });
+document.getElementById('btn-prev').addEventListener('click', () => { if (currentStep > 0) { currentStep--; renderStep(); } });
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (currentData && currentStep < currentData.steps.length - 1) { currentStep++; renderStep(); }
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); document.getElementById('btn-next').click(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); document.getElementById('btn-prev').click(); }
+  if (e.key === 'r' || e.key === 'R') { document.getElementById('btn-reset').click(); }
+});
+
+// ============================
+// DATA LOADING
+// ============================
+async function loadText() {
+  const text = getText();
+  const resp = await fetch('/api/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, hidden_size: 16 }),
+  });
+  currentData = await resp.json();
+  currentStep = -1;
+  renderStep();
+}
+
+// ============================
+// GATE HEATMAP RENDERING
+// ============================
+function renderGateHeatmap(containerId, values, colorMode) {
+  const el = document.getElementById(containerId);
+  if (!values) {
+    el.innerHTML = '<span style="color:#333;font-size:0.8rem">—</span>';
+    return;
+  }
+
+  el.innerHTML = values.map(v => {
+    let r, g, b;
+
+    if (colorMode === 'forget') {
+      // Red = 0 (forget), Green = 1 (keep)
+      const t = v; // 0 to 1
+      r = Math.round(220 * (1 - t) + 30 * t);
+      g = Math.round(60 * (1 - t) + 200 * t);
+      b = Math.round(60 * (1 - t) + 80 * t);
+    } else if (colorMode === 'sigmoid') {
+      // Dark = 0, Bright green = 1
+      const t = v;
+      r = Math.round(15 + t * 40);
+      g = Math.round(30 + t * 200);
+      b = Math.round(15 + t * 50);
+    } else if (colorMode === 'output') {
+      // Dark = 0, Bright orange = 1
+      const t = v;
+      r = Math.round(30 + t * 225);
+      g = Math.round(20 + t * 160);
+      b = Math.round(10 + t * 30);
+    } else if (colorMode === 'tanh') {
+      // Blue-red diverging for [-1, 1]
+      const av = Math.abs(v);
+      if (v >= 0) {
+        r = Math.round(20 + av * 30);
+        g = Math.round(80 + av * 155);
+        b = Math.round(150 + av * 105);
+      } else {
+        r = Math.round(150 + av * 105);
+        g = Math.round(40 + av * 30);
+        b = Math.round(40 + av * 30);
+      }
+    } else if (colorMode === 'cell') {
+      // Cyan scale for cell state
+      const av = Math.abs(v);
+      const maxV = 3; // cell state can exceed [-1,1]
+      const t = Math.min(av / maxV, 1);
+      if (v >= 0) {
+        r = Math.round(15 + t * 30);
+        g = Math.round(30 + t * 170);
+        b = Math.round(40 + t * 215);
+      } else {
+        r = Math.round(40 + t * 180);
+        g = Math.round(30 + t * 60);
+        b = Math.round(60 + t * 40);
+      }
+    } else if (colorMode === 'hidden') {
+      // Purple scale
+      const av = Math.abs(v);
+      const t = Math.min(av, 1);
+      if (v >= 0) {
+        r = Math.round(80 + t * 126);
+        g = Math.round(40 + t * 107);
+        b = Math.round(120 + t * 96);
+      } else {
+        r = Math.round(60 + t * 100);
+        g = Math.round(30 + t * 30);
+        b = Math.round(80 + t * 100);
+      }
+    }
+
+    return `<div class="g-cell" style="background:rgb(${r},${g},${b})" data-val="${v.toFixed(3)}" title="${v.toFixed(3)}"></div>`;
+  }).join('');
+}
+
+function formatAvg(values, label, unit) {
+  if (!values) return '';
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  return `<span style="color:#888">${label}: </span><span style="color:#fff">${avg.toFixed(3)}</span>${unit || ''}`;
+}
+
+// ============================
+// STEP RENDERING
+// ============================
+function renderStep() {
+  if (!currentData) return;
+  const text = currentData.text;
+  const steps = currentData.steps;
+
+  document.getElementById('btn-prev').disabled = currentStep <= 0;
+  document.getElementById('btn-next').disabled = currentStep >= steps.length - 1;
+
+  if (currentStep < 0) {
+    document.getElementById('step-badge').textContent = 'Ready — click Next Step →';
+    document.getElementById('step-text').innerHTML = `<span class="future">${text}</span>`;
+    ['gate-forget','gate-input','gate-output','gate-candidate','state-cell','state-hidden'].forEach(id => {
+      renderGateHeatmap(id, null);
+    });
+    ['gate-forget-avg','gate-input-avg','gate-output-avg','gate-candidate-avg','state-cell-mag','state-hidden-mag'].forEach(id => {
+      document.getElementById(id).textContent = '';
+    });
+    document.getElementById('live-preds').innerHTML = '';
+    return;
+  }
+
+  const step = steps[currentStep];
+  document.getElementById('step-badge').textContent = `Step ${currentStep + 1} of ${steps.length}`;
+
+  // Text with highlighting
+  let html = '';
+  if (currentStep > 0) html += `<span class="done">${text.slice(0, currentStep)}</span>`;
+  const displayChar = text[currentStep] === ' ' ? '␣' : text[currentStep];
+  html += `<span class="current">${displayChar}</span>`;
+  if (currentStep < text.length - 1) html += `<span class="future">${text.slice(currentStep + 1)}</span>`;
+  document.getElementById('step-text').innerHTML = html;
+
+  // Gate heatmaps
+  renderGateHeatmap('gate-forget', step.gates.forget, 'forget');
+  renderGateHeatmap('gate-input', step.gates.input, 'sigmoid');
+  renderGateHeatmap('gate-output', step.gates.output, 'output');
+  renderGateHeatmap('gate-candidate', step.gates.candidate, 'tanh');
+
+  // Averages
+  document.getElementById('gate-forget-avg').innerHTML = formatAvg(step.gates.forget, 'avg');
+  document.getElementById('gate-input-avg').innerHTML = formatAvg(step.gates.input, 'avg');
+  document.getElementById('gate-output-avg').innerHTML = formatAvg(step.gates.output, 'avg');
+  document.getElementById('gate-candidate-avg').innerHTML = formatAvg(step.gates.candidate, 'avg');
+
+  // Cell state + Hidden state
+  renderGateHeatmap('state-cell', step.gates.cell_state, 'cell');
+  renderGateHeatmap('state-hidden', step.gates.hidden_state, 'hidden');
+  document.getElementById('state-cell-mag').innerHTML =
+    `<span style="color:#888">|c| = </span><span style="color:#4fc3f7">${step.cell_magnitude.toFixed(3)}</span>`;
+  document.getElementById('state-hidden-mag').innerHTML =
+    `<span style="color:#888">|h| = </span><span style="color:#ce93d8">${step.hidden_magnitude.toFixed(3)}</span>`;
+
+  // Predictions
+  const predsHTML = step.top3_predictions.map((p, i) => {
+    const pct = p.prob * 100;
+    const color = i === 0 ? '#4fc3f7' : i === 1 ? '#ffb74d' : '#666';
+    return `<div class="pred-row">
+      <div class="pred-char" style="color:${color}">${p.char === ' ' ? '␣' : p.char}</div>
+      <div class="pred-bar-bg"><div class="pred-bar" style="width:${pct}%;background:${color}"></div></div>
+      <div class="pred-pct">${pct.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+  document.getElementById('live-preds').innerHTML = predsHTML;
+}
+
+// ============================
+// GRADIENT COMPARISON CHART
+// ============================
+function setupC(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c, ctx, w, h };
+}
+
+async function loadGradientComparison() {
+  const resp = await fetch('/api/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seq_length: 40 }),
+  });
+  const data = await resp.json();
+  drawGradientChart(data);
+}
+
+function drawGradientChart(data) {
+  const canvas = document.getElementById('grad-chart');
+  const W = canvas.parentElement.offsetWidth - 48; // account for padding
+  const H = 280;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 55, r: 20, t: 20, b: 40 };
+  const gw = W - pad.l - pad.r;
+  const gh = H - pad.t - pad.b;
+  const rnn = data.rnn_gradients;
+  const lstm = data.lstm_gradients;
+  const N = rnn.length;
+
+  function gx(i) { return pad.l + (i / (N - 1)) * gw; }
+  function gy(v) { return pad.t + gh - v * gh; }
+
+  // Grid lines
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = pad.t + (gh / 5) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
+    ctx.fillText(((5 - i) / 5).toFixed(1), pad.l - 6, y + 4);
+  }
+
+  // X-axis labels
+  ctx.fillStyle = '#444'; ctx.textAlign = 'center';
+  for (let i = 0; i < N; i += 5) {
+    ctx.fillText(i + 1, gx(i), H - 10);
+  }
+  ctx.fillStyle = '#666'; ctx.font = '11px Segoe UI';
+  ctx.fillText('Time step (gradient flows backward: right → left)', pad.l + gw / 2, H - 2);
+
+  // Y-axis label
+  ctx.save();
+  ctx.translate(12, pad.t + gh / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#666'; ctx.font = '11px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('Gradient strength', 0, 0);
+  ctx.restore();
+
+  // Draw RNN line (red, behind)
+  ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = gx(i), y = gy(rnn[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Draw LSTM line (blue, on top)
+  ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = gx(i), y = gy(lstm[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill area under RNN (subtle)
+  ctx.fillStyle = 'rgba(239, 83, 80, 0.08)';
+  ctx.beginPath();
+  ctx.moveTo(gx(0), gy(0));
+  for (let i = 0; i < N; i++) ctx.lineTo(gx(i), gy(rnn[i]));
+  ctx.lineTo(gx(N - 1), gy(0));
+  ctx.closePath(); ctx.fill();
+
+  // Fill area under LSTM (subtle)
+  ctx.fillStyle = 'rgba(79, 195, 247, 0.08)';
+  ctx.beginPath();
+  ctx.moveTo(gx(0), gy(0));
+  for (let i = 0; i < N; i++) ctx.lineTo(gx(i), gy(lstm[i]));
+  ctx.lineTo(gx(N - 1), gy(0));
+  ctx.closePath(); ctx.fill();
+
+  // Data point dots
+  ctx.fillStyle = '#ef5350';
+  for (let i = 0; i < N; i += 2) {
+    ctx.beginPath(); ctx.arc(gx(i), gy(rnn[i]), 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#4fc3f7';
+  for (let i = 0; i < N; i += 2) {
+    ctx.beginPath(); ctx.arc(gx(i), gy(lstm[i]), 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Labels at endpoints
+  ctx.font = '700 11px Consolas'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#ef5350';
+  ctx.fillText(`RNN: ${(rnn[0] * 100).toFixed(2)}%`, gx(0) + 4, gy(rnn[0]) - 6);
+  ctx.fillStyle = '#4fc3f7';
+  const lstmLabelY = gy(lstm[0]);
+  ctx.fillText(`LSTM: ${(lstm[0] * 100).toFixed(1)}%`, gx(0) + 4, lstmLabelY < 40 ? lstmLabelY + 16 : lstmLabelY - 6);
+
+  ctx.textAlign = 'right'; ctx.font = '700 11px Consolas';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Start (loss)', gx(N - 1), gy(1) + 16);
+
+  // Stats
+  const statsEl = document.getElementById('chart-stats');
+  statsEl.innerHTML = `
+    <div class="chart-stat">
+      <div class="stat-label">RNN at step 1</div>
+      <div class="stat-value rnn-color">${(rnn[0] * 100).toFixed(4)}%</div>
+    </div>
+    <div class="chart-stat">
+      <div class="stat-label">LSTM at step 1</div>
+      <div class="stat-value lstm-color">${(lstm[0] * 100).toFixed(2)}%</div>
+    </div>
+    <div class="chart-stat">
+      <div class="stat-label">LSTM advantage</div>
+      <div class="stat-value lstm-color">${rnn[0] > 0 ? (lstm[0] / rnn[0]).toFixed(0) : '∞'}×</div>
+    </div>
+    <div class="chart-stat">
+      <div class="stat-label">Sequence length</div>
+      <div class="stat-value" style="color:#e0e0e0">${data.seq_length} steps</div>
+    </div>
+    <div class="chart-stat">
+      <div class="stat-label">Avg forget gate</div>
+      <div class="stat-value" style="color:#66bb6a">${data.avg_forget_gate.toFixed(3)}</div>
+    </div>
+  `;
+}
+
+// Redraw chart on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => loadGradientComparison(), 200);
+});
+
+// ============================
+// INIT
+// ============================
+loadText();
+loadGradientComparison();
+</script>
+</body>
+</html>
