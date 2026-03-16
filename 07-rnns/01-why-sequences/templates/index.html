@@ -264,7 +264,7 @@
 <script>
 // ===================== SECTION 1: Load order experiment =====================
 async function loadDemo() {
-  const resp = await fetch('/api/demo');
+  const resp = await fetch('api/demo');
   const pairs = await resp.json();
   const grid = document.getElementById('pair-grid');
   grid.innerHTML = '';
@@ -358,7 +358,7 @@ async function runComparison() {
   const b = document.getElementById('input-b').value.trim();
   if (!a || !b) return;
 
-  const resp = await fetch('/api/compare', {
+  const resp = await fetch('api/compare', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sentence_a: a, sentence_b: b }),
@@ -418,7 +418,7 @@ async function runComparison() {
 
 // ===================== SECTION 3: Time series =====================
 async function loadTimeSeries() {
-  const resp = await fetch('/api/timeseries');
+  const resp = await fetch('api/timeseries');
   const data = await resp.json();
   const grid = document.getElementById('ts-grid');
   grid.innerHTML = '';

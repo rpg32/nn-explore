@@ -275,7 +275,7 @@ let allLosses = [];
 // INITIALIZATION
 // ============================================================
 async function init() {
-  const resp = await fetch('/api/status');
+  const resp = await fetch('api/status');
   const data = await resp.json();
   updateStatus(data.model);
   document.getElementById('corpus-preview').textContent = data.corpus.text;
@@ -309,7 +309,7 @@ async function trainModel() {
   progText.textContent = `Training ${epochs} epochs at lr=${lr}...`;
 
   try {
-    const resp = await fetch('/api/train', {
+    const resp = await fetch('api/train', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ epochs, lr }),
@@ -331,7 +331,7 @@ async function trainModel() {
 async function resetModel() {
   if (!confirm('Reset model to untrained state?')) return;
 
-  const resp = await fetch('/api/reset', { method: 'POST' });
+  const resp = await fetch('api/reset', { method: 'POST' });
   const data = await resp.json();
   allLosses = [];
   updateStatus(data.model);
@@ -440,7 +440,7 @@ async function generateText() {
   btn.textContent = '⏳ Generating...';
 
   try {
-    const resp = await fetch('/api/generate', {
+    const resp = await fetch('api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ seed, length, temperature }),
@@ -471,7 +471,7 @@ async function getPredictions() {
   btn.disabled = true;
 
   try {
-    const resp = await fetch('/api/predict', {
+    const resp = await fetch('api/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),

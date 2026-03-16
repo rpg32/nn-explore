@@ -221,7 +221,7 @@ function showAll() { showAllMode = true; currentStep = currentData ? currentData
 // ── Fetch data ─────────────────────────
 async function fetchAndRender() {
   const inputs = getInputs();
-  const resp = await fetch('/api/forward', {
+  const resp = await fetch('api/forward', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ architecture: currentArch, inputs }),
   });

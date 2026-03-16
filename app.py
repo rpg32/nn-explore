@@ -655,7 +655,7 @@ def m04_2_page():
 @app.route('/04-2/api/forward', methods=['POST'])
 def m04_2_forward():
     data = request.json
-    return jsonify(nn['04-2'].forward_pass_demo(
+    return jsonify(nn['04-2'].run_forward_pass(
         data.get('architecture', [2, 4, 1]),
         data.get('inputs', [0.5, -0.3]),
         seed=int(data.get('seed', 42)),
@@ -672,7 +672,7 @@ def m04_3_page():
 @app.route('/04-3/api/fit', methods=['POST'])
 def m04_3_fit():
     data = request.json
-    return jsonify(nn['04-3'].fit_comparison(
+    return jsonify(nn['04-3'].fit_with_increasing_neurons(
         data.get('function_name', 'sine'),
         int(data.get('max_neurons', 64)),
         int(data.get('epochs', 2000)),
@@ -917,7 +917,7 @@ def m07_1_demo():
 @app.route('/07-1/api/classify', methods=['POST'])
 def m07_1_classify():
     data = request.json
-    return jsonify(nn['07-1'].classify_sentence(data.get('sentence', 'dog bites man')))
+    return jsonify(nn['07-1'].classify_with_mlp(data.get('sentence', 'dog bites man')))
 
 
 # =============================================================
@@ -982,11 +982,13 @@ def m07_5_train():
     data = request.json
     if _text_predictor is None:
         _text_predictor = nn['07-5'].TextPredictor()
-    results = _text_predictor.train_epochs(
-        int(data.get('epochs', 5)),
-        float(data.get('lr', 0.01)),
-    )
-    return jsonify(results)
+    epochs = int(data.get('epochs', 5))
+    lr = float(data.get('lr', 0.01))
+    results = []
+    for _ in range(epochs):
+        loss = _text_predictor.train_epoch(lr)
+        results.append({'epoch': _text_predictor.total_epochs, 'loss': loss})
+    return jsonify({'history': results, 'total_epochs': _text_predictor.total_epochs})
 
 @app.route('/07-5/api/generate', methods=['POST'])
 def m07_5_generate():

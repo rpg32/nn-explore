@@ -216,7 +216,7 @@ async function fetchData() {
   status.className = 'status loading';
 
   try {
-    const resp = await fetch('/api/fit', {
+    const resp = await fetch('api/fit', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ function_name: currentFn, max_neurons: 64, epochs }),
     });

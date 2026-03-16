@@ -396,7 +396,7 @@ document.addEventListener('keydown', e => {
 // ============================
 async function loadText() {
   const text = getText();
-  const resp = await fetch('/api/process', {
+  const resp = await fetch('api/process', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, hidden_size: 16 }),
@@ -568,7 +568,7 @@ function setupC(id, w, h) {
 }
 
 async function loadGradientComparison() {
-  const resp = await fetch('/api/compare', {
+  const resp = await fetch('api/compare', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ seq_length: 40 }),
