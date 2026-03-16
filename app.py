@@ -1022,7 +1022,7 @@ def m07_5_train():
     lr = float(data.get('lr', 0.01))
     results = []
     for _ in range(epochs):
-        loss = _text_predictor.train_epoch(lr)
+        loss = _text_predictor.train_epoch(lr=lr)
         results.append({'epoch': _text_predictor.total_epochs, 'loss': loss})
     return jsonify({'history': results, 'total_epochs': _text_predictor.total_epochs})
 
@@ -1032,17 +1032,33 @@ def m07_5_generate():
     if _text_predictor is None:
         _text_predictor = nn['07-5'].TextPredictor()
     data = request.json
-    return jsonify(_text_predictor.generate(
+    text = _text_predictor.generate(
         data.get('seed', 'the '),
         int(data.get('length', 100)),
         float(data.get('temperature', 0.8)),
-    ))
+    )
+    return jsonify({'text': text, 'seed': data.get('seed', 'the ')})
 
 @app.route('/07-5/api/reset', methods=['POST'])
 def m07_5_reset():
     global _text_predictor
     _text_predictor = nn['07-5'].TextPredictor()
     return jsonify({'status': 'reset'})
+
+@app.route('/07-5/api/status')
+def m07_5_status():
+    global _text_predictor
+    if _text_predictor is None:
+        _text_predictor = nn['07-5'].TextPredictor()
+    return jsonify(_text_predictor.get_state())
+
+@app.route('/07-5/api/predict', methods=['POST'])
+def m07_5_predict():
+    global _text_predictor
+    if _text_predictor is None:
+        _text_predictor = nn['07-5'].TextPredictor()
+    data = request.json
+    return jsonify({'predictions': _text_predictor.get_predictions(data.get('text', 'the '))})
 
 
 # =============================================================

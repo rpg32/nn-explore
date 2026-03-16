@@ -268,90 +268,102 @@
 </div>
 
 <script>
-const dpr = window.devicePixelRatio || 1;
-let allLosses = [];
+var dpr = window.devicePixelRatio || 1;
+var allLosses = [];
 
-// ============================================================
-// INITIALIZATION
-// ============================================================
-async function init() {
-  const resp = await fetch('api/status');
-  const data = await resp.json();
-  updateStatus(data.model);
-  document.getElementById('corpus-preview').textContent = data.corpus.text;
+function xhr(method, url, body, cb) {
+  var x = new XMLHttpRequest();
+  x.open(method, url);
+  if (body) x.setRequestHeader('Content-Type', 'application/json');
+  x.onload = function() {
+    if (x.status === 200) cb(null, JSON.parse(x.responseText));
+    else cb(new Error('HTTP ' + x.status));
+  };
+  x.onerror = function() { cb(new Error('Network error')); };
+  x.send(body ? JSON.stringify(body) : null);
 }
 
-function updateStatus(model) {
-  document.getElementById('stat-epochs').textContent = model.total_epochs;
-  document.getElementById('stat-params').textContent = model.total_params.toLocaleString();
-  document.getElementById('stat-vocab').textContent = model.vocab_size + ' chars';
-  if (model.epoch_losses.length > 0) {
-    document.getElementById('stat-loss').textContent = model.epoch_losses[model.epoch_losses.length - 1].toFixed(4);
+function init() {
+  xhr('GET', 'api/status', null, function(err, data) {
+    if (err) return;
+    updateStatus(data);
+    var preview = document.getElementById('corpus-preview');
+    if (preview && data.training_text_preview) preview.textContent = data.training_text_preview;
+  });
+}
+
+function updateStatus(st) {
+  var el;
+  el = document.getElementById('stat-epochs'); if (el) el.textContent = st.total_epochs || 0;
+  el = document.getElementById('stat-params'); if (el) el.textContent = (st.total_params || 0).toLocaleString();
+  el = document.getElementById('stat-vocab'); if (el) el.textContent = (st.vocab_size || 0) + ' chars';
+  if (st.epoch_losses && st.epoch_losses.length > 0) {
+    el = document.getElementById('stat-loss');
+    if (el) el.textContent = st.epoch_losses[st.epoch_losses.length - 1].toFixed(4);
   }
-  allLosses = model.epoch_losses;
+  allLosses = st.epoch_losses || [];
   drawLossChart();
 }
 
 // ============================================================
 // TRAINING
 // ============================================================
-async function trainModel() {
-  const epochs = parseInt(document.getElementById('train-epochs').value) || 10;
-  const lr = parseFloat(document.getElementById('train-lr').value) || 0.01;
-
-  const btn = document.getElementById('btn-train');
-  const prog = document.getElementById('training-progress');
-  const progText = document.getElementById('progress-text');
+function trainModel() {
+  var epochs = parseInt(document.getElementById('train-epochs').value) || 10;
+  var lr = parseFloat(document.getElementById('train-lr').value) || 0.01;
+  var btn = document.getElementById('btn-train');
+  var prog = document.getElementById('training-progress');
+  var progText = document.getElementById('progress-text');
 
   btn.disabled = true;
-  btn.textContent = '⏳ Training...';
-  prog.classList.add('active');
-  progText.textContent = `Training ${epochs} epochs at lr=${lr}...`;
+  btn.textContent = 'Training...';
+  if (prog) prog.classList.add('active');
+  if (progText) progText.textContent = 'Training ' + epochs + ' epochs at lr=' + lr + '...';
 
-  try {
-    const resp = await fetch('api/train', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ epochs, lr }),
-    });
-    const data = await resp.json();
-    updateStatus(data.model);
+  xhr('POST', 'api/train', { epochs: epochs, lr: lr }, function(err, data) {
+    btn.disabled = false;
+    btn.textContent = 'Train';
+    if (err) { if (progText) progText.textContent = 'Error: ' + err.message; return; }
 
-    const lastLoss = data.losses[data.losses.length - 1];
-    progText.textContent = `Done! ${epochs} epochs trained. Loss: ${lastLoss.toFixed(4)}`;
-    setTimeout(() => prog.classList.remove('active'), 3000);
-  } catch (err) {
-    progText.textContent = `Error: ${err.message}`;
-  }
-
-  btn.disabled = false;
-  btn.textContent = '▶ Train';
+    // Update from train response
+    for (var i = 0; i < data.history.length; i++) {
+      allLosses.push(data.history[i].loss);
+    }
+    var el = document.getElementById('stat-epochs'); if (el) el.textContent = data.total_epochs;
+    var lastLoss = data.history[data.history.length - 1].loss;
+    el = document.getElementById('stat-loss'); if (el) el.textContent = lastLoss.toFixed(4);
+    drawLossChart();
+    if (progText) progText.textContent = 'Done! ' + epochs + ' epochs. Loss: ' + lastLoss.toFixed(4);
+    if (prog) setTimeout(function() { prog.classList.remove('active'); }, 3000);
+  });
 }
 
-async function resetModel() {
+function resetModel() {
   if (!confirm('Reset model to untrained state?')) return;
-
-  const resp = await fetch('api/reset', { method: 'POST' });
-  const data = await resp.json();
-  allLosses = [];
-  updateStatus(data.model);
-  document.getElementById('gen-output').innerHTML =
-    '<span class="gen-placeholder">Model reset. Train it again to generate text.</span>';
-  document.getElementById('pred-grid').innerHTML = '';
+  xhr('POST', 'api/reset', {}, function(err, data) {
+    allLosses = [];
+    var el = document.getElementById('stat-epochs'); if (el) el.textContent = '0';
+    el = document.getElementById('stat-loss'); if (el) el.textContent = '--';
+    drawLossChart();
+    var go = document.getElementById('gen-output');
+    if (go) go.innerHTML = '<span class="gen-placeholder">Model reset. Train again to generate text.</span>';
+    var pg = document.getElementById('pred-grid');
+    if (pg) pg.innerHTML = '';
+  });
 }
 
 // ============================================================
 // LOSS CHART
 // ============================================================
 function drawLossChart() {
-  const canvas = document.getElementById('loss-chart');
-  const W = canvas.parentElement.clientWidth - 24;
-  const H = 180;
+  var canvas = document.getElementById('loss-chart');
+  var W = canvas.parentElement.clientWidth - 24;
+  var H = 180;
   canvas.width = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d');
+  var ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
@@ -363,13 +375,13 @@ function drawLossChart() {
     return;
   }
 
-  const pad = { l: 50, r: 15, t: 15, b: 28 };
-  const gw = W - pad.l - pad.r;
-  const gh = H - pad.t - pad.b;
+  var pad = { l: 50, r: 15, t: 15, b: 28 };
+  var gw = W - pad.l - pad.r;
+  var gh = H - pad.t - pad.b;
 
-  const maxL = Math.max(...allLosses, 0.01);
-  const minL = Math.min(...allLosses, 0);
-  const range = maxL - minL || 1;
+  var maxL = Math.max(...allLosses, 0.01);
+  var minL = Math.min(...allLosses, 0);
+  var range = maxL - minL || 1;
 
   function gx(i) { return pad.l + (i / Math.max(allLosses.length - 1, 1)) * gw; }
   function gy(v) { return pad.t + (1 - (v - minL) / range) * gh; }
@@ -378,9 +390,9 @@ function drawLossChart() {
   ctx.strokeStyle = '#1a1a35';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
-    const y = pad.t + (gh / 4) * i;
+    var y = pad.t + (gh / 4) * i;
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
-    const val = maxL - (i / 4) * range;
+    var val = maxL - (i / 4) * range;
     ctx.font = '10px Consolas'; ctx.fillStyle = '#444'; ctx.textAlign = 'right';
     ctx.fillText(val.toFixed(2), pad.l - 6, y + 4);
   }
@@ -390,7 +402,7 @@ function drawLossChart() {
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (let i = 0; i < allLosses.length; i++) {
-    const x = gx(i), y = gy(allLosses[i]);
+    var x = gx(i), y = gy(allLosses[i]);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.stroke();
@@ -415,7 +427,7 @@ function drawLossChart() {
 
   // Current loss dot
   if (allLosses.length > 0) {
-    const last = allLosses.length - 1;
+    var last = allLosses.length - 1;
     ctx.beginPath();
     ctx.arc(gx(last), gy(allLosses[last]), 4, 0, Math.PI * 2);
     ctx.fillStyle = '#4fc3f7';
@@ -426,109 +438,73 @@ function drawLossChart() {
 // ============================================================
 // GENERATION
 // ============================================================
-document.getElementById('gen-temp').addEventListener('input', function() {
-  document.getElementById('gen-temp-val').textContent = this.value;
-});
+var tempSlider = document.getElementById('gen-temp');
+if (tempSlider) tempSlider.oninput = function() {
+  var el = document.getElementById('gen-temp-val');
+  if (el) el.textContent = this.value;
+};
 
-async function generateText() {
-  const seed = document.getElementById('gen-seed').value || 'the ';
-  const length = parseInt(document.getElementById('gen-length').value) || 100;
-  const temperature = parseFloat(document.getElementById('gen-temp').value) || 0.8;
+function generateText() {
+  var seed = document.getElementById('gen-seed').value || 'the ';
+  var length = parseInt(document.getElementById('gen-length').value) || 100;
+  var temperature = parseFloat(document.getElementById('gen-temp').value) || 0.8;
+  var btn = document.getElementById('btn-generate');
+  btn.disabled = true; btn.textContent = 'Generating...';
 
-  const btn = document.getElementById('btn-generate');
-  btn.disabled = true;
-  btn.textContent = '⏳ Generating...';
-
-  try {
-    const resp = await fetch('api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seed, length, temperature }),
-    });
-    const data = await resp.json();
-
-    const output = document.getElementById('gen-output');
-    // Split text into seed part and generated part
-    const seedPart = data.text.slice(0, seed.length);
-    const genPart = data.text.slice(seed.length);
-    output.innerHTML = `<span class="gen-seed">${escHtml(seedPart)}</span><span class="gen-new">${escHtml(genPart)}</span>`;
-  } catch (err) {
-    document.getElementById('gen-output').innerHTML =
-      `<span style="color:#ef5350">Error: ${err.message}</span>`;
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Generate →';
+  xhr('POST', 'api/generate', { seed: seed, length: length, temperature: temperature }, function(err, data) {
+    btn.disabled = false; btn.textContent = 'Generate';
+    var output = document.getElementById('gen-output');
+    if (err) { output.innerHTML = '<span style="color:#ef5350">Error: ' + err.message + '</span>'; return; }
+    var seedPart = data.text.slice(0, seed.length);
+    var genPart = data.text.slice(seed.length);
+    output.innerHTML = '<span class="gen-seed">' + escHtml(seedPart) + '</span><span class="gen-new">' + escHtml(genPart) + '</span>';
+  });
 }
 
 // ============================================================
 // PREDICTION VIEW
 // ============================================================
-async function getPredictions() {
-  const text = document.getElementById('pred-text').value || 'the cat';
-
-  const btn = document.getElementById('btn-predict');
+function getPredictions() {
+  var text = document.getElementById('pred-text').value || 'the cat';
+  var btn = document.getElementById('btn-predict');
   btn.disabled = true;
 
-  try {
-    const resp = await fetch('api/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    const data = await resp.json();
-    renderPredictions(data.predictions);
-  } catch (err) {
-    document.getElementById('pred-grid').innerHTML =
-      `<div style="color:#ef5350;padding:12px">Error: ${err.message}</div>`;
-  }
-
-  btn.disabled = false;
+  xhr('POST', 'api/predict', { text: text }, function(err, data) {
+    btn.disabled = false;
+    var grid = document.getElementById('pred-grid');
+    if (err) { grid.innerHTML = '<div style="color:#ef5350;padding:12px">Error: ' + err.message + '</div>'; return; }
+    renderPredictions(data.predictions || data);
+  });
 }
 
 function renderPredictions(predictions) {
-  const grid = document.getElementById('pred-grid');
+  var grid = document.getElementById('pred-grid');
   if (!predictions || predictions.length === 0) {
     grid.innerHTML = '<div style="color:#333;padding:12px">No predictions</div>';
     return;
   }
-
-  const colors = ['#4fc3f7', '#ffb74d', '#ce93d8', '#81c784', '#ef9a9a'];
-
-  let html = '';
-  for (const p of predictions) {
-    const isCorrect = p.top1_correct;
-    const hasActual = p.actual_next !== null;
-    const charClass = !hasActual ? 'nocheck' : (isCorrect ? 'correct' : 'wrong');
-
-    const displayChar = p.input_char === ' ' ? '␣' : p.input_char;
-    const displayActual = p.actual_next === null ? '—' : (p.actual_next === ' ' ? '␣' : p.actual_next);
-
-    html += `<div class="pred-char-row">`;
-    html += `<div class="pred-input-char ${charClass}">${escHtml(displayChar)}</div>`;
-    html += `<div class="pred-bars">`;
-
-    // Show top 3 predictions
-    const top3 = p.predictions.slice(0, 3);
-    for (let i = 0; i < top3.length; i++) {
-      const pred = top3[i];
-      const pct = (pred.prob * 100);
-      const barW = Math.min(pct, 100);
-      const c = colors[i];
-      const pChar = pred.char === ' ' ? '␣' : pred.char;
-      html += `<div class="pred-bar-row">`;
-      html += `<div class="pred-bar-label" style="color:${c}">${escHtml(pChar)}</div>`;
-      html += `<div class="pred-bar-bg"><div class="pred-bar-fill" style="width:${barW}%;background:${c}"></div></div>`;
-      html += `<div class="pred-bar-pct">${pct.toFixed(1)}%</div>`;
-      html += `</div>`;
+  var colors = ['#4fc3f7', '#ffb74d', '#ce93d8', '#81c784', '#ef9a9a'];
+  var html = '';
+  for (var pi = 0; pi < predictions.length; pi++) {
+    var p = predictions[pi];
+    var displayChar = p.input_char === ' ' ? '_' : p.input_char;
+    html += '<div class="pred-char-row">';
+    html += '<div class="pred-input-char">' + escHtml(displayChar) + '</div>';
+    html += '<div class="pred-bars">';
+    var top3 = (p.predictions || []).slice(0, 3);
+    for (var i = 0; i < top3.length; i++) {
+      var pred = top3[i];
+      var pct = (pred.prob * 100);
+      var barW = Math.min(pct, 100);
+      var pChar = pred.char === ' ' ? '_' : pred.char;
+      html += '<div class="pred-bar-row">';
+      html += '<div class="pred-bar-label" style="color:' + colors[i] + '">' + escHtml(pChar) + '</div>';
+      html += '<div class="pred-bar-bg"><div class="pred-bar-fill" style="width:' + barW + '%;background:' + colors[i] + '"></div></div>';
+      html += '<div class="pred-bar-pct">' + pct.toFixed(1) + '%</div>';
+      html += '</div>';
     }
-    html += `</div>`;
-
-    const actualClass = isCorrect ? 'match' : 'miss';
-    html += `<div class="pred-actual ${hasActual ? actualClass : 'miss'}">${escHtml(displayActual)}</div>`;
-    html += `</div>`;
+    html += '</div></div>';
   }
-
   grid.innerHTML = html;
 }
 
@@ -536,19 +512,16 @@ function renderPredictions(predictions) {
 // UTILS
 // ============================================================
 function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Handle window resize for chart
 window.addEventListener('resize', drawLossChart);
 
-// Keyboard shortcuts
-document.getElementById('pred-text').addEventListener('keydown', e => {
-  if (e.key === 'Enter') getPredictions();
-});
-document.getElementById('gen-seed').addEventListener('keydown', e => {
-  if (e.key === 'Enter') generateText();
-});
+var predInput = document.getElementById('pred-text');
+if (predInput) predInput.onkeydown = function(e) { if (e.key === 'Enter') getPredictions(); };
+var seedInput = document.getElementById('gen-seed');
+if (seedInput) seedInput.onkeydown = function(e) { if (e.key === 'Enter') generateText(); };
 
 // ============================================================
 // INIT
