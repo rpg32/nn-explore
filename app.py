@@ -351,6 +351,17 @@ MODULES = [
         'path': '09-attention/01-bottleneck',
         'status': 'ready',
     },
+    {
+        'id': '09-2',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '09',
+        'group_name': 'Attention',
+        'title': 'Attention as Weighted Lookup',
+        'desc': 'Query, Key, Value — the mechanism that replaced the bottleneck.',
+        'path': '09-attention/02-weighted-lookup',
+        'status': 'ready',
+    },
 ]
 
 
@@ -1106,6 +1117,23 @@ def m08_1_sparsity():
 @app.route('/08-1/api/vocab')
 def m08_1_vocab():
     return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
+
+
+# =============================================================
+# MODULE 09-2: Attention as Weighted Lookup
+# =============================================================
+@app.route('/09-2/')
+def m09_2_page():
+    return send_file(os.path.join(BASE, '09-attention/02-weighted-lookup/templates/index.html'))
+
+@app.route('/09-2/api/example', methods=['POST'])
+def m09_2_example():
+    data = request.json
+    return jsonify(nn['09-2'].run_example(data.get('example', 'animal_lookup')))
+
+@app.route('/09-2/api/examples')
+def m09_2_examples():
+    return jsonify({k: {'name': v['name'], 'desc': v['desc']} for k, v in nn['09-2'].EXAMPLES.items()})
 
 
 # =============================================================
