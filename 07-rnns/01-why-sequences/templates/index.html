@@ -262,248 +262,192 @@
 </div>
 
 <script>
-// ===================== SECTION 1: Load order experiment =====================
-async function loadDemo() {
-  const resp = await fetch('api/demo');
-  const pairs = await resp.json();
-  const grid = document.getElementById('pair-grid');
-  grid.innerHTML = '';
-
-  pairs.forEach(pair => {
-    const card = document.createElement('div');
-    card.className = 'pair-card';
-
-    // Build compact vector display
-    function vecHtml(vec) {
-      return vec.map(v => {
-        const abs = Math.abs(v);
-        const hue = v >= 0 ? 200 : 0; // blue vs red
-        const sat = Math.min(abs * 120, 100);
-        const light = 20 + Math.min(abs * 30, 35);
-        return `<div class="vec-cell" style="background:hsl(${hue},${sat}%,${light}%);color:hsl(${hue},60%,70%)" title="${v.toFixed(3)}">${v.toFixed(1)}</div>`;
-      }).join('');
-    }
-
-    card.innerHTML = `
-      <div class="pair-label">${pair.name}</div>
-      <div class="pair-row">
-        <div class="pair-side">
-          <div class="pair-sentence">"${pair.sentence_a}"</div>
-          <div class="pair-meaning">${pair.meaning_a}</div>
-          <div style="font-size:0.72rem;color:#666;margin-top:8px;">Bag vector:</div>
-          <div class="vec-row">${vecHtml(pair.result_a.bag_vector)}</div>
-        </div>
-        <div class="pair-side">
-          <div class="pair-sentence">"${pair.sentence_b}"</div>
-          <div class="pair-meaning">${pair.meaning_b}</div>
-          <div style="font-size:0.72rem;color:#666;margin-top:8px;">Bag vector:</div>
-          <div class="vec-row">${vecHtml(pair.result_b.bag_vector)}</div>
-        </div>
-      </div>
-      <div class="pair-verdict identical">
-        <span class="verdict-icon">⚠</span>
-        MLP output is <strong>identical</strong> for both sentences — it cannot tell them apart!
-      </div>
-    `;
-    grid.appendChild(card);
-  });
-
-  // Build bag-of-words demo from first pair
-  buildBowDemo(pairs[0]);
+function vecCellHtml(v) {
+  var abs = Math.abs(v);
+  var hue = v >= 0 ? 200 : 0;
+  var sat = Math.min(abs * 120, 100);
+  var light = 20 + Math.min(abs * 30, 35);
+  return '<div class="vec-cell" style="background:hsl(' + hue + ',' + sat + '%,' + light + '%);color:hsl(' + hue + ',60%,70%)" title="' + v.toFixed(3) + '">' + v.toFixed(1) + '</div>';
 }
 
-// ===================== BAG-OF-WORDS VISUAL =====================
+function vecRowHtml(vec) {
+  var html = '';
+  for (var i = 0; i < vec.length; i++) html += vecCellHtml(vec[i]);
+  return html;
+}
+
+// ===================== SECTION 1: Load order experiment =====================
+function loadDemo() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'api/demo');
+  xhr.onload = function() {
+    var pairs = JSON.parse(xhr.responseText);
+    var grid = document.getElementById('pair-grid');
+    grid.innerHTML = '';
+
+    for (var p = 0; p < pairs.length; p++) {
+      var pair = pairs[p];
+      var card = document.createElement('div');
+      card.className = 'pair-card';
+      card.innerHTML =
+        '<div class="pair-label">' + pair.name + '</div>' +
+        '<div class="pair-row">' +
+          '<div class="pair-side">' +
+            '<div class="pair-sentence">"' + pair.sentence_a + '"</div>' +
+            '<div class="pair-meaning">' + pair.meaning_a + '</div>' +
+            '<div style="font-size:0.72rem;color:#666;margin-top:8px;">Bag vector:</div>' +
+            '<div class="vec-row">' + vecRowHtml(pair.result_a.bag_vector) + '</div>' +
+          '</div>' +
+          '<div class="pair-side">' +
+            '<div class="pair-sentence">"' + pair.sentence_b + '"</div>' +
+            '<div class="pair-meaning">' + pair.meaning_b + '</div>' +
+            '<div style="font-size:0.72rem;color:#666;margin-top:8px;">Bag vector:</div>' +
+            '<div class="vec-row">' + vecRowHtml(pair.result_b.bag_vector) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="pair-verdict identical"><span class="verdict-icon">!</span> MLP output is <strong>identical</strong> for both — it cannot tell them apart!</div>';
+      grid.appendChild(card);
+    }
+
+    if (pairs.length > 0) buildBowDemo(pairs[0]);
+  };
+  xhr.send();
+}
+
 function buildBowDemo(pair) {
-  const el = document.getElementById('bow-demo');
-  const words = pair.sentence_a.split(' ');
-  const colors = ['#4fc3f7', '#ffb74d', '#ce93d8', '#81c784', '#ef5350'];
-
-  let html = '<div class="card"><p style="font-size:0.82rem;color:#9e9e9e;margin-bottom:8px;">How a bag-of-words MLP processes <strong>"' + pair.sentence_a + '"</strong>:</p>';
+  var el = document.getElementById('bow-demo');
+  var words = pair.sentence_a.split(' ');
+  var colors = ['#4fc3f7', '#ffb74d', '#ce93d8', '#81c784', '#ef5350'];
+  var html = '<div class="card"><p style="font-size:0.82rem;color:#9e9e9e;margin-bottom:8px;">How a bag-of-words MLP processes <strong>"' + pair.sentence_a + '"</strong>:</p>';
   html += '<div class="bow-visual">';
-  words.forEach((w, i) => {
+  for (var i = 0; i < words.length; i++) {
     if (i > 0) html += '<div class="bow-op">+</div>';
-    html += `<div class="bow-word" style="background:${colors[i % colors.length]}22;color:${colors[i % colors.length]};border:1px solid ${colors[i % colors.length]}44">vec("${w}")</div>`;
-  });
-  html += '<div class="bow-op">=</div>';
-  html += '<div class="bow-result" style="background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);">bag vector</div>';
-  html += '</div>';
-
-  html += '<p style="font-size:0.82rem;color:#9e9e9e;margin:12px 0 8px;">Same words, different order — <strong>"' + pair.sentence_b + '"</strong>:</p>';
-  const words2 = pair.sentence_b.split(' ');
-  html += '<div class="bow-visual">';
-  words2.forEach((w, i) => {
-    if (i > 0) html += '<div class="bow-op">+</div>';
-    const origIdx = words.indexOf(w);
-    const ci = origIdx >= 0 ? origIdx : i;
-    html += `<div class="bow-word" style="background:${colors[ci % colors.length]}22;color:${colors[ci % colors.length]};border:1px solid ${colors[ci % colors.length]}44">vec("${w}")</div>`;
-  });
-  html += '<div class="bow-op">=</div>';
-  html += '<div class="bow-result" style="background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);">same bag vector!</div>';
-  html += '</div>';
-
-  html += '<p style="font-size:0.85rem;color:#ef5350;font-weight:600;text-align:center;margin-top:8px;">';
-  html += 'vec("dog") + vec("bites") + vec("man") = vec("man") + vec("bites") + vec("dog") — addition is commutative!';
-  html += '</p></div>';
-
+    html += '<div class="bow-word" style="color:' + colors[i % colors.length] + '">vec("' + words[i] + '")</div>';
+  }
+  html += '<div class="bow-op">=</div><div class="bow-result" style="color:#ef5350">bag vector</div></div>';
+  html += '<p style="font-size:0.85rem;color:#ef5350;font-weight:600;text-align:center;margin-top:8px;">Addition is commutative! Rearranging words gives the same sum.</p></div>';
   el.innerHTML = html;
 }
 
 // ===================== SECTION 2: Interactive comparison =====================
-document.getElementById('btn-compare').addEventListener('click', runComparison);
-document.getElementById('input-a').addEventListener('keydown', e => { if (e.key === 'Enter') runComparison(); });
-document.getElementById('input-b').addEventListener('keydown', e => { if (e.key === 'Enter') runComparison(); });
+document.getElementById('btn-compare').onclick = runComparison;
+document.getElementById('input-a').onkeydown = function(e) { if (e.key === 'Enter') runComparison(); };
+document.getElementById('input-b').onkeydown = function(e) { if (e.key === 'Enter') runComparison(); };
 
-async function runComparison() {
-  const a = document.getElementById('input-a').value.trim();
-  const b = document.getElementById('input-b').value.trim();
+function runComparison() {
+  var a = document.getElementById('input-a').value.trim();
+  var b = document.getElementById('input-b').value.trim();
   if (!a || !b) return;
 
-  const resp = await fetch('api/compare', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sentence_a: a, sentence_b: b }),
-  });
-  const data = await resp.json();
-  const el = document.getElementById('compare-result');
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'api/compare');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    var data = JSON.parse(xhr.responseText);
+    var el = document.getElementById('compare-result');
+    var html = '';
 
-  function vecHtml(vec, label) {
-    return `<div style="font-size:0.72rem;color:#666;margin:6px 0 2px;">${label}:</div><div class="vec-row">${
-      vec.map(v => {
-        const abs = Math.abs(v);
-        const hue = v >= 0 ? 200 : 0;
-        const sat = Math.min(abs * 120, 100);
-        const light = 20 + Math.min(abs * 30, 35);
-        return `<div class="vec-cell" style="background:hsl(${hue},${sat}%,${light}%);color:hsl(${hue},60%,70%)" title="${v.toFixed(4)}">${v.toFixed(1)}</div>`;
-      }).join('')
-    }</div>`;
-  }
-
-  function probsHtml(probs, label) {
-    return `<div style="font-size:0.72rem;color:#666;margin:6px 0 2px;">${label}:</div><div class="vec-row">${
-      probs.map((p, i) => {
-        const v = p * 100;
-        return `<div class="vec-cell" style="background:rgba(79,195,247,${p});color:#fff;width:48px;" title="Output ${i}: ${(p*100).toFixed(1)}%">${v.toFixed(0)}%</div>`;
-      }).join('')
-    }</div>`;
-  }
-
-  let html = '';
-  if (data.bag_identical) {
-    html += '<div class="match-label same">⚠ MLP outputs are IDENTICAL — it cannot distinguish these sentences!</div>';
-    if (data.same_word_set) {
-      html += '<div class="compare-detail">Same words, different order → same bag-of-words → same output. This is the fundamental limitation.</div>';
+    if (data.bag_identical) {
+      html += '<div class="match-label same">MLP outputs are IDENTICAL — it cannot distinguish these sentences!</div>';
+    } else {
+      html += '<div class="match-label diff">MLP outputs differ (bag difference: ' + data.bag_difference.toFixed(4) + ')</div>';
     }
-  } else {
-    html += '<div class="match-label diff">✓ MLP outputs differ (bag difference: ' + data.bag_difference.toFixed(4) + ')</div>';
-    if (!data.same_word_set) {
-      html += '<div class="compare-detail">The sentences use different words, so the bag vectors differ. The MLP only fails when the same words are rearranged.</div>';
-    }
-  }
 
-  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">';
-  html += '<div style="flex:1;min-width:250px;">';
-  html += `<div style="font-family:Consolas,monospace;font-size:0.9rem;color:#fff;margin-bottom:4px;">"${data.sentence_a}"</div>`;
-  html += vecHtml(data.result_a.bag_vector, 'Bag vector');
-  html += probsHtml(data.result_a.output_probs, 'MLP output');
-  html += '</div>';
-  html += '<div style="flex:1;min-width:250px;">';
-  html += `<div style="font-family:Consolas,monospace;font-size:0.9rem;color:#fff;margin-bottom:4px;">"${data.sentence_b}"</div>`;
-  html += vecHtml(data.result_b.bag_vector, 'Bag vector');
-  html += probsHtml(data.result_b.output_probs, 'MLP output');
-  html += '</div>';
-  html += '</div>';
+    html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">';
+    html += '<div style="flex:1;min-width:250px;">';
+    html += '<div style="font-family:Consolas,monospace;font-size:0.9rem;color:#fff;margin-bottom:4px;">"' + data.sentence_a + '"</div>';
+    html += '<div style="font-size:0.72rem;color:#666;margin:4px 0;">Bag vector:</div><div class="vec-row">' + vecRowHtml(data.result_a.bag_vector) + '</div>';
+    html += '</div>';
+    html += '<div style="flex:1;min-width:250px;">';
+    html += '<div style="font-family:Consolas,monospace;font-size:0.9rem;color:#fff;margin-bottom:4px;">"' + data.sentence_b + '"</div>';
+    html += '<div style="font-size:0.72rem;color:#666;margin:4px 0;">Bag vector:</div><div class="vec-row">' + vecRowHtml(data.result_b.bag_vector) + '</div>';
+    html += '</div></div>';
 
-  el.innerHTML = html;
+    el.innerHTML = html;
+  };
+  xhr.send(JSON.stringify({ sentence_a: a, sentence_b: b }));
 }
 
 // ===================== SECTION 3: Time series =====================
-async function loadTimeSeries() {
-  const resp = await fetch('api/timeseries');
-  const data = await resp.json();
-  const grid = document.getElementById('ts-grid');
-  grid.innerHTML = '';
+function loadTimeSeries() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'api/timeseries');
+  xhr.onload = function() {
+    var data = JSON.parse(xhr.responseText);
+    var grid = document.getElementById('ts-grid');
+    grid.innerHTML = '';
 
-  const lineColors = {
-    rising: '#4fc3f7',
-    falling: '#ef5350',
-    peak: '#ffb74d',
-    valley: '#ce93d8',
-    oscillating: '#66bb6a',
-  };
+    var lineColors = { rising: '#4fc3f7', falling: '#ef5350', peak: '#ffb74d', valley: '#ce93d8', oscillating: '#66bb6a' };
+    var keys = Object.keys(data.patterns);
 
-  for (const [key, pat] of Object.entries(data.patterns)) {
-    const card = document.createElement('div');
-    card.className = 'ts-card';
-    card.innerHTML = `
-      <h4>${pat.name}</h4>
-      <div class="ts-desc">${pat.description}</div>
-      <canvas id="ts-${key}" height="80"></canvas>
-      <div class="ts-stats">
-        Sum: <span>${pat.sum.toFixed(0)}</span> &nbsp;|&nbsp;
-        Mean: <span>${pat.mean.toFixed(1)}</span> &nbsp;|&nbsp;
-        Values: <span>[${pat.values.join(', ')}]</span>
-      </div>
-    `;
-    grid.appendChild(card);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var pat = data.patterns[key];
+      var card = document.createElement('div');
+      card.className = 'ts-card';
+      card.innerHTML =
+        '<h4>' + pat.name + '</h4>' +
+        '<div class="ts-desc">' + pat.description + '</div>' +
+        '<canvas id="ts-' + key + '" height="80" style="width:100%"></canvas>' +
+        '<div class="ts-stats">Sum: <span>' + pat.sum.toFixed(0) + '</span> | Mean: <span>' + pat.mean.toFixed(1) + '</span></div>';
+      grid.appendChild(card);
+    }
 
-    // Draw the chart after adding to DOM
-    requestAnimationFrame(() => {
-      const canvas = document.getElementById(`ts-${key}`);
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.offsetWidth;
-      const h = 80;
-      canvas.width = w * (window.devicePixelRatio || 1);
-      canvas.height = h * (window.devicePixelRatio || 1);
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-
-      const vals = pat.values;
-      const maxV = 9, minV = 0;
-      const padX = 20, padY = 8;
-      const plotW = w - padX * 2, plotH = h - padY * 2;
-
-      // Grid lines
-      ctx.strokeStyle = '#1e1e3a';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 4; i++) {
-        const y = padY + (plotH / 4) * i;
-        ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
+    // Draw charts after DOM update
+    setTimeout(function() {
+      for (var k = 0; k < keys.length; k++) {
+        drawTSChart(keys[k], data.patterns[keys[k]], lineColors[keys[k]] || '#4fc3f7');
       }
+    }, 50);
 
-      // Data line
-      ctx.strokeStyle = lineColors[key] || '#4fc3f7';
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      vals.forEach((v, i) => {
-        const x = padX + (i / (vals.length - 1)) * plotW;
-        const y = padY + plotH - ((v - minV) / (maxV - minV)) * plotH;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+    var insight = document.getElementById('ts-insight');
+    if (insight) insight.innerHTML = '<p>' + data.key_insight + '</p>';
+  };
+  xhr.send();
+}
 
-      // Data points
-      ctx.fillStyle = lineColors[key] || '#4fc3f7';
-      vals.forEach((v, i) => {
-        const x = padX + (i / (vals.length - 1)) * plotW;
-        const y = padY + plotH - ((v - minV) / (maxV - minV)) * plotH;
-        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
-      });
-    });
+function drawTSChart(key, pat, color) {
+  var canvas = document.getElementById('ts-' + key);
+  if (!canvas) return;
+  var dpr = window.devicePixelRatio || 1;
+  var w = canvas.offsetWidth || 300;
+  var h = 80;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  var vals = pat.values;
+  var padX = 20, padY = 8;
+  var plotW = w - padX * 2, plotH = h - padY * 2;
+
+  ctx.strokeStyle = '#1e1e3a'; ctx.lineWidth = 1;
+  for (var i = 0; i <= 4; i++) {
+    var y = padY + (plotH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
   }
 
-  // Insight box
-  const insight = document.getElementById('ts-insight');
-  insight.innerHTML = `<p>⚠ ${data.key_insight}</p>`;
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (var i = 0; i < vals.length; i++) {
+    var x = padX + (i / (vals.length - 1)) * plotW;
+    var y = padY + plotH - (vals[i] / 9) * plotH;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  for (var i = 0; i < vals.length; i++) {
+    var x = padX + (i / (vals.length - 1)) * plotW;
+    var y = padY + plotH - (vals[i] / 9) * plotH;
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 // ===================== INIT =====================
 loadDemo();
 loadTimeSeries();
-// Auto-run the first comparison
-setTimeout(runComparison, 500);
+setTimeout(runComparison, 600);
 </script>
 </body>
 </html>

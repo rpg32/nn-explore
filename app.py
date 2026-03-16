@@ -943,6 +943,18 @@ def m07_1_classify():
     data = request.json
     return jsonify(nn['07-1'].classify_with_mlp(data.get('sentence', 'dog bites man')))
 
+@app.route('/07-1/api/compare', methods=['POST'])
+def m07_1_compare():
+    data = request.json
+    return jsonify(nn['07-1'].compare_sentences(
+        data.get('sentence_a', 'dog bites man'),
+        data.get('sentence_b', 'man bites dog'),
+    ))
+
+@app.route('/07-1/api/timeseries')
+def m07_1_timeseries():
+    return jsonify(nn['07-1'].time_series_demo())
+
 
 # =============================================================
 # MODULE 07-2: Recurrent Connections
