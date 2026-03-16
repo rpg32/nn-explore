@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09.1 — The Bottleneck Problem</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; color: #fff; margin: 28px 0 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+
+  .diagram-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .diagram-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  .controls-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .ctrl { background: #111128; border: 1px solid #1e1e3a; border-radius: 10px; padding: 12px 14px; }
+  .ctrl h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #9e9e9e; margin-bottom: 6px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ds-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.76rem; cursor: pointer; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+
+  /* Sentence cards */
+  .sent-card { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .sent-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .sent-label { font-family: Consolas, monospace; font-size: 0.85rem; font-weight: 700; color: #4fc3f7; min-width: 80px; }
+  .sent-text { font-family: Consolas, monospace; font-size: 0.88rem; color: #c0c0d0; }
+  .sent-stats { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+  .sent-stat { text-align: center; }
+  .sent-stat .lbl { font-size: 0.62rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sent-stat .val { font-family: Consolas, monospace; font-size: 0.95rem; font-weight: 700; }
+
+  /* Word contribution bars */
+  .contrib-row { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+  .contrib-word { font-family: Consolas, monospace; font-size: 0.72rem; width: 50px; text-align: right; color: #888; overflow: hidden; }
+  .contrib-bar-bg { flex: 1; height: 14px; background: #111128; border-radius: 3px; overflow: hidden; }
+  .contrib-bar { height: 100%; border-radius: 3px; }
+  .contrib-val { font-family: Consolas, monospace; font-size: 0.68rem; width: 40px; color: #666; }
+
+  /* Funnel diagram */
+  .funnel { text-align: center; margin: 20px 0; }
+  .funnel-words { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .funnel-word { background: #1e1e3a; padding: 3px 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.78rem; color: #4fc3f7; }
+  .funnel-arrow { font-size: 1.5rem; color: #333; margin: 4px 0; }
+  .funnel-vec { display: inline-block; background: #ef535030; border: 2px solid #ef5350; border-radius: 8px; padding: 8px 16px; font-family: Consolas, monospace; font-size: 0.85rem; color: #ef5350; }
+
+  .insight { background: rgba(239,83,80,0.08); border: 1px solid rgba(239,83,80,0.2); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+  .insight p { color: #ef9a9a; font-size: 0.9rem; margin: 0; }
+
+  .solution { background: rgba(102,187,106,0.08); border: 1px solid rgba(102,187,106,0.2); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+  .solution p { color: #a5d6a7; font-size: 0.9rem; margin: 0; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 09 &middot; Attention</div>
+  <h1>The Bottleneck Problem</h1>
+  <p class="subtitle">Why compressing an entire sentence into one vector loses information</p>
+
+  <div class="card">
+    <h3>The Encoder-Decoder Architecture (Pre-Attention)</h3>
+    <p>Before attention existed, sequence-to-sequence tasks (like translation) used this approach:</p>
+    <p><strong>Encoder (RNN):</strong> Read the entire input sentence word by word, producing a hidden state at each step. The <strong>final hidden state</strong> is a single vector summarizing the whole sentence.</p>
+    <p><strong>Decoder (RNN):</strong> Take that single summary vector and generate the output sentence word by word.</p>
+    <p>The problem: <strong>everything</strong> the decoder knows about the input must pass through that one vector. It's a bottleneck.</p>
+  </div>
+
+  <div class="card">
+    <h3>The Squeeze</h3>
+    <p>Watch what happens as we encode sentences of increasing length into the same fixed-size vector:</p>
+
+    <div class="funnel">
+      <div class="funnel-words" id="funnel-words"></div>
+      <div class="funnel-arrow">&#x25BC; squeeze into &#x25BC;</div>
+      <div class="funnel-vec" id="funnel-vec">16 numbers</div>
+    </div>
+
+    <div class="insight">
+      <p><strong>3 words into 16 numbers</strong> = ~5 numbers per word. Plenty of room.<br>
+      <strong>30 words into 16 numbers</strong> = ~0.5 numbers per word. Massive information loss. Earlier words get overwritten.</p>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <div class="ctrl">
+      <h3>Hidden Size</h3>
+      <div class="ds-btns" id="hs-btns">
+        <button class="ds-btn" data-hs="8">8</button>
+        <button class="ds-btn active" data-hs="16">16</button>
+        <button class="ds-btn" data-hs="32">32</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>Information Loss by Sentence Length</h2>
+  <div id="results"></div>
+
+  <div class="solution">
+    <p><strong>The solution (Module 09.2):</strong> Instead of forcing everything through one vector, let the decoder <strong>look back</strong> at the hidden state from <strong>every step</strong> of the encoder. At each decoder step, it picks which encoder states are relevant. This is <strong>attention</strong> — and it eliminates the bottleneck entirely.</p>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Compare "tiny" (3 words) to "very_long" (30+ words).</strong> Look at how each word's contribution to the final state changes. Early words in long sentences contribute almost nothing — they've been overwritten.</li>
+      <li><strong>Look at the words/number ratio.</strong> At hidden size 16 with 30 words, you're trying to pack ~2 numbers of info per word into 0.5 numbers of space. Something has to give.</li>
+      <li><strong>Try hidden size 8 vs 32.</strong> Bigger hidden states help, but the problem doesn't disappear — you just push the wall back. With 1000 words, even 256 dimensions isn't enough.</li>
+      <li><strong>Notice that later words have bigger bars.</strong> The RNN's recent memory dominates. Early words fade. This is the vanishing gradient problem from Module 07, seen from the encoding side.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+var currentHiddenSize = 16;
+
+function loadData() {
+  var x = new XMLHttpRequest();
+  x.open('POST', 'api/analyze');
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onload = function() {
+    var data = JSON.parse(x.responseText);
+    renderResults(data);
+  };
+  x.send(JSON.stringify({ hidden_size: currentHiddenSize }));
+}
+
+function renderResults(data) {
+  var el = document.getElementById('results');
+  el.innerHTML = '';
+
+  // Update funnel
+  if (data.sentences.length > 0) {
+    var longest = data.sentences[data.sentences.length - 1];
+    var fw = document.getElementById('funnel-words');
+    fw.innerHTML = '';
+    var words = longest.words;
+    for (var i = 0; i < Math.min(words.length, 15); i++) {
+      fw.innerHTML += '<div class="funnel-word">' + words[i] + '</div>';
+    }
+    if (words.length > 15) fw.innerHTML += '<div class="funnel-word">... +' + (words.length - 15) + ' more</div>';
+    document.getElementById('funnel-vec').textContent = data.hidden_size + ' numbers';
+  }
+
+  for (var s = 0; s < data.sentences.length; s++) {
+    var sent = data.sentences[s];
+    var card = document.createElement('div');
+    card.className = 'sent-card';
+
+    var ratioColor = sent.ratio < 1 ? '#66bb6a' : sent.ratio < 2 ? '#ffb74d' : '#ef5350';
+    var ratioLabel = sent.ratio < 1 ? 'plenty of room' : sent.ratio < 2 ? 'getting tight' : 'severe bottleneck';
+
+    var html = '<div class="sent-header">';
+    html += '<div class="sent-label">' + sent.name + '</div>';
+    html += '<div class="sent-text">"' + sent.sentence + '"</div>';
+    html += '</div>';
+
+    html += '<div class="sent-stats">';
+    html += '<div class="sent-stat"><div class="lbl">Words</div><div class="val" style="color:#4fc3f7">' + sent.num_words + '</div></div>';
+    html += '<div class="sent-stat"><div class="lbl">Hidden Size</div><div class="val">' + sent.hidden_size + '</div></div>';
+    html += '<div class="sent-stat"><div class="lbl">Words / Number</div><div class="val" style="color:' + ratioColor + '">' + sent.ratio + '</div></div>';
+    html += '<div class="sent-stat"><div class="lbl">Verdict</div><div class="val" style="color:' + ratioColor + ';font-size:0.78rem">' + ratioLabel + '</div></div>';
+    html += '</div>';
+
+    // Contribution bars
+    var contribs = sent.contributions;
+    var maxChange = 0;
+    for (var i = 0; i < contribs.length; i++) {
+      if (contribs[i].state_change > maxChange) maxChange = contribs[i].state_change;
+    }
+
+    html += '<div style="font-size:0.72rem;color:#666;margin-bottom:4px;">Hidden state change per word (how much each word affects the encoding):</div>';
+    for (var i = 0; i < contribs.length; i++) {
+      var c = contribs[i];
+      var pct = maxChange > 0 ? (c.state_change / maxChange * 100) : 0;
+      var barColor = i < contribs.length * 0.3 ? '#ef5350' : i < contribs.length * 0.7 ? '#ffb74d' : '#66bb6a';
+      html += '<div class="contrib-row">';
+      html += '<div class="contrib-word">' + c.word + '</div>';
+      html += '<div class="contrib-bar-bg"><div class="contrib-bar" style="width:' + pct + '%;background:' + barColor + '"></div></div>';
+      html += '<div class="contrib-val">' + c.state_change.toFixed(3) + '</div>';
+      html += '</div>';
+    }
+
+    card.innerHTML = html;
+    el.appendChild(card);
+  }
+}
+
+// Hidden size buttons
+var hsBtns = document.querySelectorAll('#hs-btns .ds-btn');
+for (var i = 0; i < hsBtns.length; i++) {
+  hsBtns[i].onclick = (function(btn) {
+    return function() {
+      for (var j = 0; j < hsBtns.length; j++) hsBtns[j].classList.remove('active');
+      btn.classList.add('active');
+      currentHiddenSize = parseInt(btn.getAttribute('data-hs'));
+      loadData();
+    };
+  })(hsBtns[i]);
+}
+
+loadData();
+</script>
+</body>
+</html>

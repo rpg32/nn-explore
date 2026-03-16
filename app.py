@@ -340,6 +340,17 @@ MODULES = [
         'path': '08-embeddings/03-learning-embeddings',
         'status': 'ready',
     },
+    {
+        'id': '09-1',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '09',
+        'group_name': 'Attention',
+        'title': 'The Bottleneck Problem',
+        'desc': 'Why compressing a whole sentence into one vector loses information.',
+        'path': '09-attention/01-bottleneck',
+        'status': 'ready',
+    },
 ]
 
 
@@ -1095,6 +1106,21 @@ def m08_1_sparsity():
 @app.route('/08-1/api/vocab')
 def m08_1_vocab():
     return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
+
+
+# =============================================================
+# MODULE 09-1: The Bottleneck Problem
+# =============================================================
+@app.route('/09-1/')
+def m09_1_page():
+    return send_file(os.path.join(BASE, '09-attention/01-bottleneck/templates/index.html'))
+
+@app.route('/09-1/api/analyze', methods=['POST'])
+def m09_1_analyze():
+    data = request.json
+    return jsonify(nn['09-1'].information_retention(
+        hidden_size=int(data.get('hidden_size', 16)),
+    ))
 
 
 # =============================================================
