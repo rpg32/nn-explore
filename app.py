@@ -307,6 +307,17 @@ MODULES = [
         'path': '07-rnns/05-text-predictor',
         'status': 'ready',
     },
+    {
+        'id': '08-1',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '08',
+        'group_name': 'Embeddings',
+        'title': 'One-Hot Encoding',
+        'desc': 'The simplest way to turn words into numbers — and why it\'s not enough.',
+        'path': '08-embeddings/01-one-hot',
+        'status': 'ready',
+    },
 ]
 
 
@@ -1009,6 +1020,31 @@ def m07_5_reset():
     global _text_predictor
     _text_predictor = nn['07-5'].TextPredictor()
     return jsonify({'status': 'reset'})
+
+
+# =============================================================
+# MODULE 08-1: One-Hot Encoding
+# =============================================================
+@app.route('/08-1/')
+def m08_1_page():
+    return send_file(os.path.join(BASE, '08-embeddings/01-one-hot/templates/index.html'))
+
+@app.route('/08-1/api/encode', methods=['POST'])
+def m08_1_encode():
+    data = request.json
+    return jsonify(nn['08-1'].encode_sentence(data.get('sentence', 'the cat sat')))
+
+@app.route('/08-1/api/distances')
+def m08_1_distances():
+    return jsonify(nn['08-1'].compare_similar_words())
+
+@app.route('/08-1/api/sparsity')
+def m08_1_sparsity():
+    return jsonify(nn['08-1'].show_sparsity())
+
+@app.route('/08-1/api/vocab')
+def m08_1_vocab():
+    return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
 
 
 # =============================================================
