@@ -318,6 +318,17 @@ MODULES = [
         'path': '08-embeddings/01-one-hot',
         'status': 'ready',
     },
+    {
+        'id': '08-2',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '08',
+        'group_name': 'Embeddings',
+        'title': 'Dense Embeddings',
+        'desc': 'Meaning as geometry — similar words live close together in vector space.',
+        'path': '08-embeddings/02-dense-embeddings',
+        'status': 'ready',
+    },
 ]
 
 
@@ -1045,6 +1056,32 @@ def m08_1_sparsity():
 @app.route('/08-1/api/vocab')
 def m08_1_vocab():
     return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
+
+
+# =============================================================
+# MODULE 08-2: Dense Embeddings
+# =============================================================
+@app.route('/08-2/')
+def m08_2_page():
+    return send_file(os.path.join(BASE, '08-embeddings/02-dense-embeddings/templates/index.html'))
+
+@app.route('/08-2/api/embeddings')
+def m08_2_embeddings():
+    return jsonify(nn['08-2'].get_all_embeddings())
+
+@app.route('/08-2/api/nearest', methods=['POST'])
+def m08_2_nearest():
+    data = request.json
+    return jsonify(nn['08-2'].compute_nearest(data.get('word', 'cat'), int(data.get('n', 5))))
+
+@app.route('/08-2/api/analogy', methods=['POST'])
+def m08_2_analogy():
+    data = request.json
+    return jsonify(nn['08-2'].analogy(data['a'], data['b'], data['c']))
+
+@app.route('/08-2/api/distances')
+def m08_2_distances():
+    return jsonify(nn['08-2'].compare_distances(nn['08-2'].DEFAULT_PAIRS))
 
 
 # =============================================================

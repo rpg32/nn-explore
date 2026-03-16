@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08.2 — Dense Embeddings</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; color: #fff; margin: 28px 0 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+
+  .chart-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+  .chart-card canvas { display: block; margin: 0 auto; border-radius: 6px; cursor: crosshair; }
+
+  .legend { display: flex; gap: 14px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; font-family: Consolas, monospace; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .detail-panel { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; display: none; }
+  .detail-panel h3 { color: #4fc3f7; font-size: 1rem; margin-bottom: 12px; }
+  .nn-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .nn-word { font-family: Consolas, monospace; font-size: 0.9rem; font-weight: 700; width: 70px; }
+  .nn-bar-bg { flex: 1; height: 18px; background: #0d0d20; border-radius: 4px; overflow: hidden; }
+  .nn-bar { height: 100%; border-radius: 4px; }
+  .nn-dist { font-family: Consolas, monospace; font-size: 0.78rem; color: #888; width: 50px; text-align: right; }
+
+  .dist-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .dist-table th, .dist-table td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #1a1a30; font-size: 0.85rem; }
+  .dist-table th { color: #9e9e9e; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; }
+  .dist-table td { font-family: Consolas, monospace; }
+
+  .analogy-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .analogy-card h3 { color: #fff; margin-bottom: 12px; }
+  .analogy-formula { font-family: Consolas, monospace; font-size: 1.2rem; text-align: center; margin: 16px 0; }
+  .analogy-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .a-btn { padding: 6px 12px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.78rem; cursor: pointer; }
+  .a-btn.active { border-color: #ab47bc; color: #ab47bc; }
+  .analogy-result { text-align: center; font-family: Consolas, monospace; font-size: 1.1rem; color: #66bb6a; margin-top: 8px; }
+
+  .insight { background: rgba(102,187,106,0.08); border: 1px solid rgba(102,187,106,0.2); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+  .insight p { color: #a5d6a7; font-size: 0.9rem; margin: 0; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 08 &middot; Embeddings</div>
+  <h1>Dense Embeddings</h1>
+  <p class="subtitle">Meaning as geometry — similar words live close together in vector space</p>
+
+  <div class="card">
+    <h3>From One-Hot to Dense</h3>
+    <p>Instead of a 30-dimensional sparse vector with one 1 (Module 08.1), each word gets a <strong>2-dimensional dense vector</strong> of meaningful numbers. Words that appear in similar contexts end up with similar vectors.</p>
+    <p>Below, every word is plotted as a point. <strong>Click any word</strong> to see its nearest neighbors. Notice how animals cluster together, verbs cluster together, etc.</p>
+    <p style="font-size:0.82rem;color:#888">Real embeddings use 128-768 dimensions. We use 2D here so you can see it directly.</p>
+  </div>
+
+  <div class="chart-card">
+    <h3>Embedding Space — Words as Points</h3>
+    <div class="legend" id="legend"></div>
+    <canvas id="embed-canvas" width="1100" height="550"></canvas>
+  </div>
+
+  <div class="detail-panel" id="detail-panel">
+    <h3 id="detail-title">Nearest Neighbors</h3>
+    <div id="detail-content"></div>
+  </div>
+
+  <h2>Distances Now Encode Meaning</h2>
+  <div class="card">
+    <p>Compare this to Module 08.1 where ALL pairs had distance 1.414. Now related words are <strong>close</strong> and unrelated words are <strong>far</strong>:</p>
+    <table class="dist-table" id="dist-table">
+      <tr><th>Word 1</th><th>Word 2</th><th>Embedding Distance</th><th>One-Hot Distance</th><th>Relationship</th></tr>
+    </table>
+    <div class="insight">
+      <p><strong>The fix works:</strong> "cat" and "dog" are now much closer (0.42) than "cat" and "the" (3.39). The embedding encodes semantic similarity as geometric distance.</p>
+    </div>
+  </div>
+
+  <h2>Word Arithmetic</h2>
+  <div class="analogy-card">
+    <h3>Directions in embedding space encode relationships</h3>
+    <p style="color:#c0c0d0;font-size:0.93rem;margin-bottom:12px">The vector from "man" to "woman" encodes a gender direction. Apply that same direction to "king" and you get... "queen". Meaning is algebraic.</p>
+    <div class="analogy-btns" id="analogy-btns">
+      <button class="a-btn active" data-a="king" data-b="man" data-c="woman">king - man + woman = ?</button>
+      <button class="a-btn" data-a="queen" data-b="woman" data-c="man">queen - woman + man = ?</button>
+      <button class="a-btn" data-a="kitten" data-b="cat" data-c="dog">kitten - cat + dog = ?</button>
+      <button class="a-btn" data-a="ran" data-b="run" data-c="walked">ran - run + walked = ?</button>
+    </div>
+    <div class="analogy-formula" id="analogy-formula"></div>
+    <div class="analogy-result" id="analogy-result"></div>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Click on "cat" in the map.</strong> Its nearest neighbors are dog, kitten, puppy — all animals. One-hot couldn't tell you this.</li>
+      <li><strong>Click on "ran".</strong> Nearest: run, walked, jumped — all motion verbs. The embedding captures part-of-speech.</li>
+      <li><strong>Look at the distance table.</strong> cat-dog = 0.42 vs cat-the = 3.39. Embeddings make similar words close and unrelated words far — the opposite of one-hot where everything was equal.</li>
+      <li><strong>Try the analogies.</strong> "king - man + woman = queen" works because the gender direction is consistent. This kind of algebra emerges naturally from training (Module 08.3).</li>
+      <li><strong>Notice the clusters.</strong> Animals (blue), verbs (red), adjectives (green) naturally group. Nobody told the embedding to organize this way — it emerges from word usage patterns.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+var dpr = window.devicePixelRatio || 1;
+var allWords = [];
+var categories = {};
+var selectedWord = null;
+
+function setupCanvas(id, w, h) {
+  var c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  var ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return {c: c, ctx: ctx, w: w, h: h};
+}
+var emC = setupCanvas('embed-canvas', 1100, 550);
+
+// Coordinate transforms
+var RANGE = 5;
+function toPixelX(x) { return 60 + (x + RANGE) / (2 * RANGE) * (emC.w - 80); }
+function toPixelY(y) { return emC.h - 40 - (y + RANGE) / (2 * RANGE) * (emC.h - 60); }
+function fromPixelX(px) { return (px - 60) / (emC.w - 80) * (2 * RANGE) - RANGE; }
+function fromPixelY(py) { return -((py - (emC.h - 40)) / (emC.h - 60) * (2 * RANGE) - RANGE); }
+
+function drawEmbeddings() {
+  var ctx = emC.ctx, W = emC.w, H = emC.h;
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  for (var i = -4; i <= 4; i++) {
+    var px = toPixelX(i), py = toPixelY(i);
+    ctx.beginPath(); ctx.moveTo(px, 10); ctx.lineTo(px, H - 40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(60, py); ctx.lineTo(W - 20, py); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(toPixelX(0), 10); ctx.lineTo(toPixelX(0), H - 40); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60, toPixelY(0)); ctx.lineTo(W - 20, toPixelY(0)); ctx.stroke();
+
+  // Words
+  for (var i = 0; i < allWords.length; i++) {
+    var w = allWords[i];
+    var px = toPixelX(w.x), py = toPixelY(w.y);
+    var isSelected = (selectedWord === w.word);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(px, py, isSelected ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = w.color;
+    ctx.globalAlpha = isSelected ? 1 : 0.8;
+    ctx.fill();
+    if (isSelected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.globalAlpha = 1;
+
+    // Label
+    ctx.font = (isSelected ? '700 ' : '') + '11px Consolas';
+    ctx.fillStyle = isSelected ? '#fff' : w.color;
+    ctx.textAlign = 'left';
+    ctx.fillText(w.word, px + 8, py + 4);
+  }
+
+  // Highlight line to selected word's neighbors
+  if (selectedWord) {
+    var sw = allWords.find(function(w) { return w.word === selectedWord; });
+    if (sw) {
+      ctx.font = '700 13px Consolas'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+      ctx.fillText('Selected: ' + selectedWord, 70, 24);
+    }
+  }
+}
+
+// Click handler
+emC.c.addEventListener('click', function(e) {
+  var rect = emC.c.getBoundingClientRect();
+  var mx = (e.clientX - rect.left) * (emC.w / rect.width);
+  var my = (e.clientY - rect.top) * (emC.h / rect.height);
+
+  var closest = null, closestDist = Infinity;
+  for (var i = 0; i < allWords.length; i++) {
+    var w = allWords[i];
+    var px = toPixelX(w.x), py = toPixelY(w.y);
+    var d = Math.sqrt((mx - px) * (mx - px) + (my - py) * (my - py));
+    if (d < closestDist && d < 30) {
+      closest = w; closestDist = d;
+    }
+  }
+
+  if (closest) {
+    selectedWord = closest.word;
+    drawEmbeddings();
+    showNearest(closest.word);
+  }
+});
+
+function showNearest(word) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'api/nearest');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    var data = JSON.parse(xhr.responseText);
+    var panel = document.getElementById('detail-panel');
+    panel.style.display = '';
+    document.getElementById('detail-title').textContent = 'Nearest neighbors of "' + word + '"';
+
+    var maxDist = data.nearest[data.nearest.length - 1].distance;
+    var html = '';
+    for (var i = 0; i < data.nearest.length; i++) {
+      var n = data.nearest[i];
+      var pct = Math.max(5, (1 - n.distance / (maxDist * 1.2)) * 100);
+      var catWord = allWords.find(function(w) { return w.word === n.word; });
+      var color = catWord ? catWord.color : '#888';
+      html += '<div class="nn-row">' +
+        '<div class="nn-word" style="color:' + color + '">' + n.word + '</div>' +
+        '<div class="nn-bar-bg"><div class="nn-bar" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+        '<div class="nn-dist">' + n.distance.toFixed(3) + '</div>' +
+      '</div>';
+    }
+    document.getElementById('detail-content').innerHTML = html;
+  };
+  xhr.send(JSON.stringify({word: word, n: 8}));
+}
+
+function loadDistances() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'api/distances');
+  xhr.onload = function() {
+    var data = JSON.parse(xhr.responseText);
+    var table = document.getElementById('dist-table');
+    table.innerHTML = '<tr><th>Word 1</th><th>Word 2</th><th>Embedding Dist</th><th>One-Hot Dist</th><th>Related?</th></tr>';
+    for (var i = 0; i < data.pairs.length; i++) {
+      var p = data.pairs[i];
+      var distColor = p.distance < 1 ? '#66bb6a' : p.distance < 2 ? '#ffb74d' : '#ef5350';
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td style="color:#4fc3f7">' + p.word1 + '</td>' +
+        '<td style="color:#4fc3f7">' + p.word2 + '</td>' +
+        '<td style="color:' + distColor + ';font-weight:700">' + p.distance.toFixed(4) + '</td>' +
+        '<td style="color:#ef5350">1.4142 (always)</td>' +
+        '<td style="color:' + (p.same_category ? '#66bb6a' : '#888') + '">' + (p.same_category ? 'Yes — same category' : 'No') + '</td>';
+      table.appendChild(tr);
+    }
+  };
+  xhr.send();
+}
+
+function runAnalogy(a, b, c) {
+  document.getElementById('analogy-formula').innerHTML =
+    '<span style="color:#4fc3f7">' + a + '</span> - <span style="color:#ef5350">' + b + '</span> + <span style="color:#ffb74d">' + c + '</span> = ?';
+  document.getElementById('analogy-result').textContent = 'Computing...';
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'api/analogy');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    var data = JSON.parse(xhr.responseText);
+    document.getElementById('analogy-result').innerHTML =
+      '<span style="color:#4fc3f7">' + data.a + '</span> - <span style="color:#ef5350">' + data.b +
+      '</span> + <span style="color:#ffb74d">' + data.c + '</span> = <strong style="color:#66bb6a;font-size:1.3rem">' +
+      data.nearest_word + '</strong>';
+  };
+  xhr.send(JSON.stringify({a: a, b: b, c: c}));
+}
+
+// Analogy buttons
+var aBtns = document.querySelectorAll('.a-btn');
+for (var i = 0; i < aBtns.length; i++) {
+  aBtns[i].onclick = (function(btn) {
+    return function() {
+      for (var j = 0; j < aBtns.length; j++) aBtns[j].classList.remove('active');
+      btn.classList.add('active');
+      runAnalogy(btn.getAttribute('data-a'), btn.getAttribute('data-b'), btn.getAttribute('data-c'));
+    };
+  })(aBtns[i]);
+}
+
+// Init
+function init() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'api/embeddings');
+  xhr.onload = function() {
+    var data = JSON.parse(xhr.responseText);
+    allWords = data.words;
+    categories = data.categories;
+
+    // Build legend
+    var leg = document.getElementById('legend');
+    leg.innerHTML = '';
+    for (var cat in categories) {
+      leg.innerHTML += '<div class="legend-item"><div class="legend-dot" style="background:' + categories[cat] + '"></div>' + cat + '</div>';
+    }
+
+    drawEmbeddings();
+    loadDistances();
+    runAnalogy('king', 'man', 'woman');
+  };
+  xhr.send();
+}
+
+init();
+</script>
+</body>
+</html>
