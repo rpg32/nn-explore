@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09.3 — Attention Scores &amp; Weights</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.15rem; color: #fff; margin: 24px 0 10px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+  .formula-box { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px 20px; font-family: Consolas, monospace; font-size: 0.85rem; line-height: 2; margin: 12px 0; }
+
+  .text-input { background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 6px; color: #e0e0e0; font-family: Consolas, monospace; font-size: 1rem; padding: 10px 14px; width: 100%; max-width: 600px; }
+  .run-btn { padding: 10px 20px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.88rem; cursor: pointer; margin-left: 8px; }
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .ds-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.74rem; cursor: pointer; }
+  .ds-btn:hover { border-color: #555; }
+
+  /* Matrix heatmap */
+  .matrix-section { display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+  .matrix-card { flex: 1; min-width: 400px; background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; }
+  .matrix-card h3 { font-size: 0.95rem; color: #fff; margin-bottom: 10px; }
+  .matrix-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  /* Top attention summary */
+  .attn-summary { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .attn-summary h3 { font-size: 0.95rem; color: #fff; margin-bottom: 10px; }
+  .attn-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .attn-word { font-family: Consolas, monospace; font-size: 0.9rem; font-weight: 700; width: 70px; text-align: right; }
+  .attn-arrow { color: #555; font-size: 0.8rem; }
+  .attn-targets { display: flex; gap: 4px; }
+  .attn-target { padding: 3px 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.8rem; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 09 &middot; Attention</div>
+  <h1>Attention Scores &amp; Weights</h1>
+  <p class="subtitle">Type a sentence — see the full NxN attention matrix form</p>
+
+  <div class="card">
+    <h3>From One Query to All Queries</h3>
+    <p>Module 09.2 showed attention for one query word. Now we compute it for <strong>every word simultaneously</strong>. Each word asks: "which other words are relevant to me?" This produces an N&times;N matrix.</p>
+    <div class="formula-box">
+      Q = X &times; W_Q &nbsp;&nbsp; <span style="color:#555">(N words &times; d_k — every word gets a query)</span><br>
+      K = X &times; W_K &nbsp;&nbsp; <span style="color:#555">(N words &times; d_k — every word gets a key)</span><br>
+      scores = Q &times; K<sup>T</sup> / &radic;d_k &nbsp;&nbsp; <span style="color:#555">(N &times; N matrix — every query vs every key)</span><br>
+      weights = softmax(scores) &nbsp;&nbsp; <span style="color:#555">(each row sums to 1)</span><br>
+      <span style="color:#888">That's just <strong>three matrix multiplies</strong>. All words processed in parallel. No loop.</span>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+    <input type="text" class="text-input" id="sentence-input" value="the cat sat on the mat" placeholder="Type a sentence...">
+    <button class="run-btn" id="btn-compute">Compute Attention</button>
+  </div>
+  <div class="ds-btns" id="example-btns"></div>
+
+  <h2>The Attention Matrix</h2>
+  <div class="matrix-section">
+    <div class="matrix-card">
+      <h3>Raw Scores (Q &middot; K<sup>T</sup> / &radic;d)</h3>
+      <canvas id="scores-canvas" width="500" height="500"></canvas>
+    </div>
+    <div class="matrix-card">
+      <h3>Attention Weights (softmax per row)</h3>
+      <canvas id="weights-canvas" width="500" height="500"></canvas>
+    </div>
+  </div>
+
+  <div class="attn-summary" id="attn-summary">
+    <h3>Who Attends to Whom?</h3>
+    <div id="attn-rows"></div>
+  </div>
+
+  <div class="card">
+    <h3>Reading the Matrix</h3>
+    <p><strong>Row i</strong> = "when processing word i, how much does it attend to each other word?"</p>
+    <p><strong>Each row sums to 1</strong> — it's a probability distribution.</p>
+    <p><strong>Bright cells</strong> = high attention. Word i strongly attends to word j.</p>
+    <p><strong>Diagonal</strong> = a word attending to itself (often high — the word itself is relevant to its own representation).</p>
+    <p>In Module 09.4 (Self-Attention), we'll see this matrix used inside the transformer itself — not between encoder and decoder, but within a single sequence attending to itself.</p>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>"the cat sat on the mat"</strong> — look at the row for "cat". It should attend most to "dog"-like or noun-like words if present. The two "the" tokens may attend to different things.</li>
+      <li><strong>"the big dog chased the small cat"</strong> — does "big" attend to "dog"? Does "small" attend to "cat"? Adjectives should attend to what they modify.</li>
+      <li><strong>"a quick brown fox jumped over the lazy dog"</strong> — a longer sentence. More patterns visible in the matrix.</li>
+      <li><strong>Compare raw scores vs weights.</strong> Raw scores can be any number. Softmax squashes them so each row sums to 1 and the strongest connection dominates.</li>
+      <li><strong>Notice the structure.</strong> The matrix isn't random — semantic patterns emerge even with untrained projection matrices, because the embeddings already encode category similarity.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+var dpr = window.devicePixelRatio || 1;
+var currentData = null;
+
+function loadExamples() {
+  var x = new XMLHttpRequest();
+  x.open('GET', 'api/examples');
+  x.onload = function() {
+    var data = JSON.parse(x.responseText);
+    var el = document.getElementById('example-btns');
+    el.innerHTML = '';
+    for (var i = 0; i < data.sentences.length; i++) {
+      var btn = document.createElement('button');
+      btn.className = 'ds-btn';
+      btn.textContent = data.sentences[i];
+      btn.setAttribute('data-sent', data.sentences[i]);
+      btn.onclick = (function(s) {
+        return function() {
+          document.getElementById('sentence-input').value = s;
+          compute();
+        };
+      })(data.sentences[i]);
+      el.appendChild(btn);
+    }
+  };
+  x.send();
+}
+
+document.getElementById('btn-compute').onclick = compute;
+document.getElementById('sentence-input').onkeydown = function(e) { if (e.key === 'Enter') compute(); };
+
+function compute() {
+  var sent = document.getElementById('sentence-input').value.trim();
+  if (!sent) return;
+
+  var x = new XMLHttpRequest();
+  x.open('POST', 'api/compute');
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onload = function() {
+    currentData = JSON.parse(x.responseText);
+    drawMatrix('scores-canvas', currentData.raw_scores, currentData.words, currentData.colors, false);
+    drawMatrix('weights-canvas', currentData.attention_weights, currentData.words, currentData.colors, true);
+    renderSummary();
+  };
+  x.send(JSON.stringify({ sentence: sent }));
+}
+
+function drawMatrix(canvasId, matrix, words, colors, isWeights) {
+  var N = words.length;
+  var cellSize = Math.min(50, Math.floor(460 / N));
+  var margin = 80;
+  var size = margin + N * cellSize + 10;
+
+  var c = document.getElementById(canvasId);
+  c.width = size * dpr; c.height = size * dpr;
+  c.style.width = size + 'px'; c.style.height = size + 'px';
+  var ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, size, size);
+
+  // Find value range
+  var minV = Infinity, maxV = -Infinity;
+  for (var i = 0; i < N; i++) {
+    for (var j = 0; j < N; j++) {
+      if (matrix[i][j] < minV) minV = matrix[i][j];
+      if (matrix[i][j] > maxV) maxV = matrix[i][j];
+    }
+  }
+  var range = maxV - minV || 1;
+
+  // Draw cells
+  for (var i = 0; i < N; i++) {
+    for (var j = 0; j < N; j++) {
+      var v = matrix[i][j];
+      var t;
+      if (isWeights) {
+        t = v; // weights are 0-1
+      } else {
+        t = (v - minV) / range;
+      }
+      var r = Math.round(10 + t * 60);
+      var g = Math.round(10 + t * 120);
+      var b = Math.round(30 + t * 220);
+      ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+      ctx.fillRect(margin + j * cellSize, margin + i * cellSize, cellSize - 1, cellSize - 1);
+
+      // Value text
+      if (cellSize >= 30) {
+        ctx.font = (cellSize > 35 ? '10' : '8') + 'px Consolas';
+        ctx.fillStyle = t > 0.5 ? '#000' : '#666';
+        ctx.textAlign = 'center';
+        var label = isWeights ? (v * 100).toFixed(0) + '%' : v.toFixed(1);
+        ctx.fillText(label, margin + j * cellSize + cellSize / 2, margin + i * cellSize + cellSize / 2 + 3);
+      }
+    }
+  }
+
+  // Row labels (left) — "query" words
+  ctx.textAlign = 'right';
+  for (var i = 0; i < N; i++) {
+    ctx.font = '700 11px Consolas';
+    ctx.fillStyle = colors[i];
+    ctx.fillText(words[i], margin - 6, margin + i * cellSize + cellSize / 2 + 4);
+  }
+
+  // Column labels (top) — "key" words
+  ctx.textAlign = 'center';
+  for (var j = 0; j < N; j++) {
+    ctx.save();
+    ctx.translate(margin + j * cellSize + cellSize / 2, margin - 6);
+    ctx.rotate(-Math.PI / 4);
+    ctx.font = '700 11px Consolas';
+    ctx.fillStyle = colors[j];
+    ctx.textAlign = 'left';
+    ctx.fillText(words[j], 0, 0);
+    ctx.restore();
+  }
+
+  // Axis labels
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
+  ctx.fillText('Key (attending TO)', margin + N * cellSize / 2, size - 2);
+  ctx.save();
+  ctx.translate(10, margin + N * cellSize / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Query (attending FROM)', 0, 0);
+  ctx.restore();
+}
+
+function renderSummary() {
+  var el = document.getElementById('attn-rows');
+  var html = '';
+  var data = currentData;
+
+  for (var i = 0; i < data.top_attention.length; i++) {
+    var item = data.top_attention[i];
+    html += '<div class="attn-row">';
+    html += '<div class="attn-word" style="color:' + data.colors[i] + '">' + item.word + '</div>';
+    html += '<div class="attn-arrow">attends to</div>';
+    html += '<div class="attn-targets">';
+    for (var j = 0; j < item.attends_to.length; j++) {
+      var t = item.attends_to[j];
+      var wordIdx = data.words.indexOf(t.word);
+      var col = wordIdx >= 0 ? data.colors[wordIdx] : '#555';
+      var opacity = Math.max(0.3, t.weight);
+      html += '<div class="attn-target" style="background:' + col + '30;color:' + col + ';border:1px solid ' + col + '50">' + t.word + ' ' + (t.weight * 100).toFixed(0) + '%</div>';
+    }
+    html += '</div></div>';
+  }
+  el.innerHTML = html;
+}
+
+loadExamples();
+compute();
+</script>
+</body>
+</html>

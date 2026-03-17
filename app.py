@@ -362,6 +362,17 @@ MODULES = [
         'path': '09-attention/02-weighted-lookup',
         'status': 'ready',
     },
+    {
+        'id': '09-3',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '09',
+        'group_name': 'Attention',
+        'title': 'Attention Scores & Weights',
+        'desc': 'Type a sentence — see the full NxN attention matrix form.',
+        'path': '09-attention/03-scores-weights',
+        'status': 'ready',
+    },
 ]
 
 
@@ -1117,6 +1128,23 @@ def m08_1_sparsity():
 @app.route('/08-1/api/vocab')
 def m08_1_vocab():
     return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
+
+
+# =============================================================
+# MODULE 09-3: Attention Scores & Weights
+# =============================================================
+@app.route('/09-3/')
+def m09_3_page():
+    return send_file(os.path.join(BASE, '09-attention/03-scores-weights/templates/index.html'))
+
+@app.route('/09-3/api/compute', methods=['POST'])
+def m09_3_compute():
+    data = request.json
+    return jsonify(nn['09-3'].compute_attention_matrix(data.get('sentence', 'the cat sat on the mat')))
+
+@app.route('/09-3/api/examples')
+def m09_3_examples():
+    return jsonify({'sentences': nn['09-3'].EXAMPLE_SENTENCES})
 
 
 # =============================================================
