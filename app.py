@@ -341,6 +341,17 @@ MODULES = [
         'status': 'ready',
     },
     {
+        'id': '08-4',
+        'phase': 4,
+        'phase_name': 'Attention & Transformers',
+        'group': '08',
+        'group_name': 'Embeddings',
+        'title': 'How Embeddings Actually Work',
+        'desc': 'The network architecture, training mechanics, and real-world usage — no gaps.',
+        'path': '08-embeddings/04-how-embeddings-work',
+        'status': 'ready',
+    },
+    {
         'id': '09-1',
         'phase': 4,
         'phase_name': 'Attention & Transformers',
@@ -1128,6 +1139,31 @@ def m08_1_sparsity():
 @app.route('/08-1/api/vocab')
 def m08_1_vocab():
     return jsonify({'vocab': nn['08-1'].VOCAB, 'size': len(nn['08-1'].VOCAB)})
+
+
+# =============================================================
+# MODULE 08-4: How Embeddings Actually Work
+# =============================================================
+@app.route('/08-4/')
+def m08_4_page():
+    return send_file(os.path.join(BASE, '08-embeddings/04-how-embeddings-work/templates/index.html'))
+
+@app.route('/08-4/api/forward', methods=['POST'])
+def m08_4_forward():
+    data = request.json
+    return jsonify(nn['08-4'].demo_forward(data.get('word', 'cat')))
+
+@app.route('/08-4/api/train', methods=['POST'])
+def m08_4_train():
+    data = request.json
+    return jsonify(nn['08-4'].demo_training(
+        num_epochs=int(data.get('epochs', 30)),
+        lr=float(data.get('lr', 0.15)),
+    ))
+
+@app.route('/08-4/api/real_world')
+def m08_4_real_world():
+    return jsonify(nn['08-4'].real_world_comparison())
 
 
 # =============================================================

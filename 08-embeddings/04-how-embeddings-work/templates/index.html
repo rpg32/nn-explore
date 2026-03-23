@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08.4 — How Embeddings Actually Work</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 30px; }
+  .back-link { display: inline-block; color: #555; text-decoration: none; font-size: 0.85rem; margin-bottom: 12px; }
+  .back-link:hover { color: #4fc3f7; }
+  .module-tag { display: inline-block; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; color: #fff; margin: 28px 0 12px; }
+  .subtitle { font-size: 1rem; color: #9e9e9e; margin-bottom: 20px; }
+  .card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .card h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
+  .card p { color: #c0c0d0; font-size: 0.93rem; margin-bottom: 8px; }
+
+  .diagram-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .diagram-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  .ds-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+  .ds-btn { padding: 6px 12px; border-radius: 5px; border: 1px solid #2a2a4a; background: #0d0d20; color: #9e9e9e; font-size: 0.8rem; cursor: pointer; font-family: Consolas, monospace; }
+  .ds-btn.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .run-btn { padding: 10px 20px; border-radius: 8px; border: 2px solid #4fc3f7; background: #0d0d20; color: #4fc3f7; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+
+  /* Forward pass detail */
+  .fwd-step { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+  .fwd-step h4 { font-size: 0.85rem; margin-bottom: 6px; }
+  .fwd-mono { font-family: Consolas, monospace; font-size: 0.85rem; line-height: 1.8; }
+
+  .vec-row { display: flex; gap: 3px; margin: 4px 0; flex-wrap: wrap; }
+  .vec-cell { min-width: 42px; height: 26px; display: flex; align-items: center; justify-content: center; font-family: Consolas, monospace; font-size: 0.75rem; border-radius: 3px; padding: 0 4px; }
+
+  /* Matrix table */
+  .mat-table { border-collapse: collapse; margin: 8px 0; }
+  .mat-table td { padding: 4px 8px; font-family: Consolas, monospace; font-size: 0.8rem; border: 1px solid #1e1e3a; text-align: center; }
+  .mat-table .row-label { color: #4fc3f7; font-weight: 700; text-align: right; border: none; padding-right: 10px; }
+  .mat-table .highlight { background: #4fc3f730; }
+
+  /* Training steps */
+  .train-step { background: #0d0d20; border: 1px solid #1e1e3a; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+  .train-step .pair { font-family: Consolas, monospace; font-size: 0.9rem; margin-bottom: 6px; }
+
+  /* Embedding plot */
+  .chart-card { background: #111128; border: 1px solid #1e1e3a; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+  .chart-card canvas { display: block; margin: 0 auto; border-radius: 6px; }
+
+  /* Real world table */
+  .rw-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .rw-table th, .rw-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #1e1e3a; font-size: 0.85rem; }
+  .rw-table th { color: #9e9e9e; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; }
+  .rw-table td { font-family: Consolas, monospace; color: #c0c0d0; }
+  .rw-table .name { color: #4fc3f7; font-weight: 700; }
+  .rw-table .note { font-family: 'Segoe UI', sans-serif; font-size: 0.82rem; color: #888; }
+
+  .insight { background: rgba(102,187,106,0.08); border: 1px solid rgba(102,187,106,0.2); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+  .insight p { color: #a5d6a7; font-size: 0.9rem; margin: 0; }
+
+  .challenges { background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.2); border-radius: 10px; padding: 20px 24px; }
+  .challenges h3 { color: #ffb74d; margin-bottom: 12px; }
+  .challenges ul { list-style: none; }
+  .challenges li { padding: 5px 0 5px 24px; position: relative; color: #c0c0d0; font-size: 0.88rem; }
+  .challenges li::before { content: '>'; position: absolute; left: 2px; color: #ffb74d; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to all lessons</a>
+  <div class="module-tag">Module 08 &middot; Embeddings</div>
+  <h1>How Embeddings Actually Work</h1>
+  <p class="subtitle">The network architecture, the training process, and how real models use them</p>
+
+  <!-- SECTION 1: THE ARCHITECTURE -->
+  <div class="card">
+    <h3>The Network: It's Just an MLP</h3>
+    <p>Word2Vec is a neural network with <strong>one hidden layer</strong>. The hidden layer weight matrix IS the embedding table.</p>
+    <p>With vocab=8 words and embed_dim=2:</p>
+  </div>
+
+  <div class="diagram-card">
+    <canvas id="arch-diagram" width="1060" height="360"></canvas>
+  </div>
+
+  <!-- SECTION 2: FORWARD PASS TRACE -->
+  <h2>Section 1: Trace the Forward Pass</h2>
+  <div class="card">
+    <p>Click a word to see exactly what happens when it enters the network:</p>
+    <div class="ds-btns" id="word-btns"></div>
+    <div id="forward-display"></div>
+  </div>
+
+  <!-- SECTION 3: TRAINING TRACE -->
+  <h2>Section 2: Watch Training Move the Embeddings</h2>
+  <div class="card">
+    <p>Click "Train" to run 30 epochs. Watch how the embedding vectors for "cat" and "dog" converge because they appear in similar contexts.</p>
+    <button class="run-btn" id="btn-train">Train 30 Epochs</button>
+    <div id="train-display" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Embedding Space (before and after training)</h3>
+    <div class="ds-btns" id="snapshot-btns"></div>
+    <canvas id="embed-canvas" width="1060" height="450"></canvas>
+  </div>
+
+  <!-- SECTION 4: REAL WORLD -->
+  <h2>Section 3: Embeddings in the Real World</h2>
+  <div class="card">
+    <h3>From Standalone to End-to-End</h3>
+    <p><strong>2013 (Word2Vec):</strong> Train embeddings separately, then use them as input features for other models. A two-step process.</p>
+    <p><strong>2018+ (GPT, BERT):</strong> The embedding matrix is the <strong>first layer of the transformer</strong>. It's trained end-to-end — the embeddings are optimized for the exact task the model performs. No separate step.</p>
+    <p>In GPT-2, the embedding is literally: <code>token_id → row of a 50,257 × 768 matrix → 768 numbers</code>. Those 768 numbers flow into the attention layers. The whole thing trains together.</p>
+    <div class="insight">
+      <p><strong>Key insight:</strong> An embedding is just a lookup table (a matrix). One-hot × matrix = select a row. That row is the word's representation. In Word2Vec it's trained to predict context. In GPT it's trained to predict the next token. Same mechanic, different training signal.</p>
+    </div>
+    <table class="rw-table" id="rw-table"></table>
+  </div>
+
+  <div class="challenges">
+    <h3>Things to Try</h3>
+    <ul>
+      <li><strong>Click each word</strong> in Section 1. Notice that the forward pass is: one-hot → select a row from W_embed → that's the embedding. The matrix multiply is just a fancy row selection.</li>
+      <li><strong>Look at the embedding matrix.</strong> Row 0 = "cat"'s vector. Row 1 = "dog"'s vector. Each row is just 2 numbers — the coordinates in embedding space.</li>
+      <li><strong>Click Train</strong> and step through snapshots. At epoch 0, all words are random. By epoch 30, "cat" and "dog" are near each other because both predict similar context words.</li>
+      <li><strong>Look at the training steps.</strong> When center="cat" predicts context="sat", the gradient adjusts cat's row. When center="dog" also predicts context="sat", dog's row moves the same way. Convergence!</li>
+      <li><strong>Read the real-world table.</strong> GPT-2's embedding matrix is 38.6M parameters — and it's the smallest part of the model. The transformer layers on top are where the real processing happens.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+var dpr = window.devicePixelRatio || 1;
+var trainData = null;
+var selectedSnapshot = 0;
+
+function setupCanvas(id, w, h) {
+  var c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  var ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  return { c: c, ctx: ctx, w: w, h: h };
+}
+
+// ============================================================
+// ARCHITECTURE DIAGRAM
+// ============================================================
+function drawArchDiagram() {
+  var d = setupCanvas('arch-diagram', 1060, 360);
+  var ctx = d.ctx, W = d.w, H = d.h;
+
+  var VOCAB = ['cat','dog','sat','the','on','mat','ran','big'];
+  var cx = W / 2, inputX = 120, embedX = 420, outputX = 740;
+  var neuronR = 16, gap = 36;
+
+  // Title
+  ctx.font = '700 14px Segoe UI'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+  ctx.fillText('Word2Vec Architecture: [8 input, 2 hidden, 8 output]', cx, 22);
+
+  // Input layer (8 neurons, one-hot)
+  ctx.font = '700 12px Consolas'; ctx.fillStyle = '#888'; ctx.textAlign = 'center';
+  ctx.fillText('INPUT (one-hot)', inputX, 46);
+  ctx.font = '10px Consolas'; ctx.fillText('8 neurons', inputX, 60);
+
+  for (var i = 0; i < 8; i++) {
+    var y = 80 + i * gap;
+    ctx.beginPath(); ctx.arc(inputX, y, neuronR, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? '#4fc3f720' : '#0d0d20';
+    ctx.fill();
+    ctx.strokeStyle = i === 0 ? '#4fc3f7' : '#333'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.font = '9px Consolas'; ctx.fillStyle = i === 0 ? '#4fc3f7' : '#555'; ctx.textAlign = 'center';
+    ctx.fillText(i === 0 ? '1' : '0', inputX, y + 3);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#666';
+    ctx.fillText(VOCAB[i], inputX - neuronR - 6, y + 3);
+  }
+
+  // Embedding layer (2 neurons)
+  ctx.font = '700 12px Consolas'; ctx.fillStyle = '#4fc3f7'; ctx.textAlign = 'center';
+  ctx.fillText('HIDDEN = EMBEDDING', embedX, 46);
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#888'; ctx.fillText('2 neurons', embedX, 60);
+
+  var embedY = [160, 220];
+  for (var i = 0; i < 2; i++) {
+    ctx.beginPath(); ctx.arc(embedX, embedY[i], neuronR + 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#4fc3f720'; ctx.fill();
+    ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.font = '700 11px Consolas'; ctx.fillStyle = '#4fc3f7';
+    ctx.fillText('e' + i, embedX, embedY[i] + 4);
+  }
+
+  // Output layer (8 neurons)
+  ctx.font = '700 12px Consolas'; ctx.fillStyle = '#ffb74d'; ctx.textAlign = 'center';
+  ctx.fillText('OUTPUT (predict context)', outputX, 46);
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#888'; ctx.fillText('8 neurons + softmax', outputX, 60);
+
+  for (var i = 0; i < 8; i++) {
+    var y = 80 + i * gap;
+    ctx.beginPath(); ctx.arc(outputX, y, neuronR, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d20'; ctx.fill();
+    ctx.strokeStyle = '#ffb74d40'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.font = '9px Consolas'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
+    ctx.fillText('p(' + VOCAB[i] + ')', outputX, y + 3);
+  }
+
+  // Connections: input → embed
+  for (var i = 0; i < 8; i++) {
+    for (var j = 0; j < 2; j++) {
+      ctx.strokeStyle = i === 0 ? '#4fc3f740' : '#ffffff08'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(inputX + neuronR, 80 + i * gap);
+      ctx.lineTo(embedX - neuronR - 4, embedY[j]);
+      ctx.stroke();
+    }
+  }
+
+  // Connections: embed → output
+  for (var i = 0; i < 2; i++) {
+    for (var j = 0; j < 8; j++) {
+      ctx.strokeStyle = '#ffb74d10'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(embedX + neuronR + 4, embedY[i]);
+      ctx.lineTo(outputX - neuronR, 80 + j * gap);
+      ctx.stroke();
+    }
+  }
+
+  // Embedding matrix annotation
+  ctx.fillStyle = '#0d0d20';
+  ctx.fillRect(240, 268, 360, 80);
+  ctx.strokeStyle = '#4fc3f750'; ctx.lineWidth = 1;
+  ctx.strokeRect(240, 268, 360, 80);
+  ctx.font = '700 11px Consolas'; ctx.fillStyle = '#4fc3f7'; ctx.textAlign = 'left';
+  ctx.fillText('W_embed (8 x 2 matrix) = THE EMBEDDING TABLE', 252, 288);
+  ctx.font = '10px Consolas'; ctx.fillStyle = '#aaa';
+  ctx.fillText('Row 0 [0.82, -0.41] = "cat" vector', 260, 306);
+  ctx.fillText('Row 1 [0.79, -0.38] = "dog" vector', 260, 320);
+  ctx.fillText('one-hot x W_embed = select a row = get embedding', 260, 340);
+}
+
+drawArchDiagram();
+
+// ============================================================
+// FORWARD PASS
+// ============================================================
+var VOCAB = ['cat','dog','sat','the','on','mat','ran','big'];
+
+function buildWordBtns() {
+  var el = document.getElementById('word-btns');
+  for (var i = 0; i < VOCAB.length; i++) {
+    var btn = document.createElement('button');
+    btn.className = 'ds-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = VOCAB[i];
+    btn.setAttribute('data-word', VOCAB[i]);
+    btn.onclick = (function(w) {
+      return function() {
+        var btns = document.querySelectorAll('#word-btns .ds-btn');
+        for (var j = 0; j < btns.length; j++) btns[j].classList.toggle('active', btns[j].getAttribute('data-word') === w);
+        showForward(w);
+      };
+    })(VOCAB[i]);
+    el.appendChild(btn);
+  }
+}
+
+function showForward(word) {
+  var x = new XMLHttpRequest();
+  x.open('POST', 'api/forward');
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onload = function() {
+    var data = JSON.parse(x.responseText);
+    renderForward(data);
+  };
+  x.send(JSON.stringify({ word: word }));
+}
+
+function vecHtml(vec, color) {
+  var html = '<div class="vec-row">';
+  for (var i = 0; i < vec.length; i++) {
+    var v = vec[i];
+    var isHot = (v === 1);
+    var bg = isHot ? (color || '#4fc3f7') : '#0d0d20';
+    var fg = isHot ? '#000' : '#555';
+    html += '<div class="vec-cell" style="background:' + bg + ';color:' + fg + '">' + (typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(3)) : v) + '</div>';
+  }
+  return html + '</div>';
+}
+
+function renderForward(data) {
+  var el = document.getElementById('forward-display');
+  var wordIdx = VOCAB.indexOf(data.word);
+
+  var html = '';
+
+  // Step 1: One-hot
+  html += '<div class="fwd-step"><h4 style="color:#888">Step 1: One-hot encode "' + data.word + '"</h4>';
+  html += '<div class="fwd-mono">[';
+  for (var i = 0; i < data.one_hot.length; i++) {
+    var v = data.one_hot[i];
+    if (v === 1) html += '<span style="color:#4fc3f7;font-weight:700">1</span>';
+    else html += '<span style="color:#333">0</span>';
+    if (i < data.one_hot.length - 1) html += ', ';
+  }
+  html += '] <span style="color:#555">&larr; position ' + wordIdx + ' = "' + data.word + '"</span></div></div>';
+
+  // Step 2: Row selection
+  html += '<div class="fwd-step"><h4 style="color:#4fc3f7">Step 2: Look up row ' + wordIdx + ' of W_embed = THE EMBEDDING</h4>';
+  html += '<table class="mat-table">';
+  for (var i = 0; i < data.W_embed_full.length; i++) {
+    var row = data.W_embed_full[i];
+    var isSelected = (i === wordIdx);
+    html += '<tr class="' + (isSelected ? 'highlight' : '') + '">';
+    html += '<td class="row-label">' + VOCAB[i] + '</td>';
+    for (var j = 0; j < row.length; j++) {
+      html += '<td style="color:' + (isSelected ? '#4fc3f7' : '#555') + '">' + row[j].toFixed(3) + '</td>';
+    }
+    if (isSelected) html += '<td style="border:none;color:#4fc3f7;font-weight:700"> &larr; selected!</td>';
+    html += '</tr>';
+  }
+  html += '</table>';
+  html += '<div class="fwd-mono" style="margin-top:6px;">Embedding for "' + data.word + '" = <span style="color:#4fc3f7;font-weight:700">[' + data.embedding.join(', ') + ']</span></div></div>';
+
+  // Step 3: Predict context
+  html += '<div class="fwd-step"><h4 style="color:#ffb74d">Step 3: Multiply by W_output &rarr; predict context word</h4>';
+  html += '<div class="fwd-mono" style="margin-bottom:6px;">Probabilities after softmax:</div>';
+  var sortedProbs = [];
+  for (var i = 0; i < data.probs.length; i++) sortedProbs.push({word: VOCAB[i], prob: data.probs[i]});
+  sortedProbs.sort(function(a, b) { return b.prob - a.prob; });
+  for (var i = 0; i < sortedProbs.length; i++) {
+    var s = sortedProbs[i];
+    var pct = s.prob * 100;
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
+    html += '<div style="font-family:Consolas;font-size:0.85rem;width:40px;text-align:right;color:#ffb74d">' + s.word + '</div>';
+    html += '<div style="flex:1;height:16px;background:#0d0d20;border-radius:3px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:#ffb74d;border-radius:3px"></div></div>';
+    html += '<div style="font-family:Consolas;font-size:0.78rem;width:40px;color:#888">' + pct.toFixed(1) + '%</div>';
+    html += '</div>';
+  }
+  html += '<div style="font-size:0.82rem;color:#888;margin-top:6px;">Untrained — predictions are random. After training, "cat" would predict "the", "sat", "on" with high probability.</div>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+// ============================================================
+// TRAINING
+// ============================================================
+document.getElementById('btn-train').onclick = function() {
+  var btn = document.getElementById('btn-train');
+  btn.disabled = true; btn.textContent = 'Training...';
+
+  var x = new XMLHttpRequest();
+  x.open('POST', 'api/train');
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onload = function() {
+    btn.disabled = false; btn.textContent = 'Train 30 Epochs';
+    trainData = JSON.parse(x.responseText);
+    selectedSnapshot = trainData.snapshots.length - 1;
+    renderTrainSteps();
+    buildSnapshotBtns();
+    drawEmbeddings();
+  };
+  x.send(JSON.stringify({ epochs: 30, lr: 0.15 }));
+};
+
+function renderTrainSteps() {
+  var el = document.getElementById('train-display');
+  var steps = trainData.steps;
+  var html = '<div style="font-size:0.85rem;color:#888;margin-bottom:8px;">First ' + steps.length + ' training steps (of ' + trainData.num_pairs + ' pairs per epoch):</div>';
+
+  for (var i = 0; i < Math.min(steps.length, 6); i++) {
+    var s = steps[i];
+    html += '<div class="train-step">';
+    html += '<div class="pair">center="<span style="color:#4fc3f7">' + s.center_word + '</span>" predict "<span style="color:#ffb74d">' + s.context_word + '</span>" &nbsp; loss=' + s.loss.toFixed(3) + '</div>';
+    html += '<div style="font-family:Consolas;font-size:0.8rem;color:#888">';
+    html += '"' + s.center_word + '" embedding: [' + s.old_embedding.join(', ') + '] &rarr; [' + s.new_embedding.join(', ') + ']';
+    html += ' <span style="color:#66bb6a">(moved by [' + s.embedding_change.join(', ') + '])</span>';
+    html += '</div></div>';
+  }
+  el.innerHTML = html;
+}
+
+function buildSnapshotBtns() {
+  var el = document.getElementById('snapshot-btns');
+  el.innerHTML = '';
+  for (var i = 0; i < trainData.snapshots.length; i++) {
+    var btn = document.createElement('button');
+    btn.className = 'ds-btn' + (i === selectedSnapshot ? ' active' : '');
+    btn.textContent = 'Epoch ' + trainData.snapshots[i].epoch;
+    btn.setAttribute('data-idx', String(i));
+    btn.onclick = (function(idx) {
+      return function() {
+        selectedSnapshot = idx;
+        var btns = document.querySelectorAll('#snapshot-btns .ds-btn');
+        for (var j = 0; j < btns.length; j++) btns[j].classList.toggle('active', parseInt(btns[j].getAttribute('data-idx')) === idx);
+        drawEmbeddings();
+      };
+    })(i);
+    el.appendChild(btn);
+  }
+}
+
+var emC = setupCanvas('embed-canvas', 1060, 450);
+var WORD_COLORS = { cat: '#4fc3f7', dog: '#4fc3f7', sat: '#ef5350', ran: '#ef5350', the: '#888', on: '#888', mat: '#ffb74d', big: '#66bb6a' };
+
+function drawEmbeddings() {
+  var ctx = emC.ctx, W = emC.w, H = emC.h;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!trainData) {
+    ctx.font = '14px Consolas'; ctx.fillStyle = '#333'; ctx.textAlign = 'center';
+    ctx.fillText('Click "Train 30 Epochs" to see embeddings evolve', W / 2, H / 2);
+    return;
+  }
+
+  var snap = trainData.snapshots[selectedSnapshot];
+  var embeds = snap.embeddings;
+  var words = Object.keys(embeds);
+
+  var xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+  for (var i = 0; i < words.length; i++) {
+    var e = embeds[words[i]];
+    if (e[0] < xMin) xMin = e[0]; if (e[0] > xMax) xMax = e[0];
+    if (e[1] < yMin) yMin = e[1]; if (e[1] > yMax) yMax = e[1];
+  }
+  var pad = Math.max((xMax - xMin), (yMax - yMin)) * 0.2 || 1;
+  xMin -= pad; xMax += pad; yMin -= pad; yMax += pad;
+
+  var mx = 60, my = 30, mr = 30, mb = 30;
+  function px(v) { return mx + (v - xMin) / (xMax - xMin) * (W - mx - mr); }
+  function py(v) { return my + (1 - (v - yMin) / (yMax - yMin)) * (H - my - mb); }
+
+  // Grid
+  ctx.strokeStyle = '#1a1a35'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(px(0), my); ctx.lineTo(px(0), H - mb); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mx, py(0)); ctx.lineTo(W - mr, py(0)); ctx.stroke();
+
+  // Words
+  for (var i = 0; i < words.length; i++) {
+    var w = words[i];
+    var e = embeds[w];
+    var x = px(e[0]), y = py(e[1]);
+    var col = WORD_COLORS[w] || '#555';
+
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.font = '700 12px Consolas'; ctx.fillStyle = col; ctx.textAlign = 'left';
+    ctx.fillText(w, x + 10, y + 4);
+  }
+
+  ctx.font = '700 13px Consolas'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  ctx.fillText('Epoch ' + snap.epoch, mx, 20);
+}
+
+// ============================================================
+// REAL WORLD TABLE
+// ============================================================
+function loadRealWorld() {
+  var x = new XMLHttpRequest();
+  x.open('GET', 'api/real_world');
+  x.onload = function() {
+    var data = JSON.parse(x.responseText);
+    var table = document.getElementById('rw-table');
+    table.innerHTML = '<tr><th>Model</th><th>Vocab</th><th>Embed Dim</th><th>Embed Params</th><th>Usage</th></tr>';
+    for (var i = 0; i < data.systems.length; i++) {
+      var s = data.systems[i];
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="name">' + s.name + '</td>' +
+        '<td>' + s.vocab_size.toLocaleString() + '</td>' +
+        '<td>' + s.embed_dim.toLocaleString() + '</td>' +
+        '<td>' + (s.total_params / 1e6).toFixed(1) + 'M</td>' +
+        '<td><span class="note">' + s.usage + '</span></td>';
+      table.appendChild(tr);
+    }
+  };
+  x.send();
+}
+
+// INIT
+buildWordBtns();
+showForward('cat');
+loadRealWorld();
+drawEmbeddings();
+</script>
+</body>
+</html>
